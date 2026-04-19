@@ -178,24 +178,34 @@ void App::DoFrame( float dt )
 		savingDepth = false;
 	}
 
+
+
 	if (showImguiDebugWindows)
 	{
 
 		// imgui windows
 		static MP sponzeProbe{ "Sponza" };
 		static MP gobberProbe{ "Gobber" };
-		static MP nanoProbe{ "Nano" };
+		static MP userMeshProbe{ "UserMesh" };
 		sponzeProbe.SpawnWindow(sponza);
 		gobberProbe.SpawnWindow(gobber);
 		//nanoProbe.SpawnWindow(nano);
 
-		cameras.SpawnWindow(wnd.Gfx());
-		light.SpawnControlWindow();
-		ShowImguiDemoWindow();
-		cube.SpawnControlWindow(wnd.Gfx(), "Cube 1");
-		cube2.SpawnControlWindow(wnd.Gfx(), "Cube 2");
+		if (dynamicModel)
+		{
+			userMeshProbe.SpawnWindow(*dynamicModel);
+		}
 
-		rg.RenderWindows(wnd.Gfx());
+
+
+
+		//cameras.SpawnWindow(wnd.Gfx());
+		light.SpawnControlWindow();
+		//ShowImguiDemoWindow();
+		//cube.SpawnControlWindow(wnd.Gfx(), "Cube 1");
+		//cube2.SpawnControlWindow(wnd.Gfx(), "Cube 2");
+
+		//rg.RenderWindows(wnd.Gfx());
 	}
 
 	{
@@ -216,7 +226,6 @@ void App::DoFrame( float dt )
 		ImGui::SameLine();
 		if (ImGui::Button("Load Model"))
 		{
-			// próbujemy wczytać model, złap wyjątki i zapisz błąd do wyświetlenia
 			try
 			{
 				dynamicModel = std::make_unique<Model>(wnd.Gfx(), std::string(pathBuf), dynamicModelScale);
@@ -228,9 +237,6 @@ void App::DoFrame( float dt )
 				);
 
 				dynamicModel->LinkTechniques(rg);
-				// opcjonalnie: ustaw transform, linkuj techniki itp.
-				// dynamicModel->SetRootTransform( ... );
-				// dynamicModel->LinkTechniques( rg );
 			}
 			catch (const std::exception& e)
 			{
