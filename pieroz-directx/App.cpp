@@ -71,6 +71,9 @@ void App::HandleInput( float dt )
 		case VK_F1:
 			showDemoWindow = true;
 			break;
+		case VK_F2:
+			showImguiDebugWindows = !showImguiDebugWindows;
+			break;
 		case VK_RETURN:
 			savingDepth = true;
 			break;
@@ -142,21 +145,26 @@ void App::DoFrame( float dt )
 		rg.DumpShadowMap( wnd.Gfx(),"shadow.png" );
 		savingDepth = false;
 	}
-	
-	// imgui windows
-	static MP sponzeProbe{ "Sponza" };
-	static MP gobberProbe{ "Gobber" };
-	static MP nanoProbe{ "Nano" };
-	sponzeProbe.SpawnWindow( sponza );
-	gobberProbe.SpawnWindow( gobber );
-	nanoProbe.SpawnWindow( nano );
-	cameras.SpawnWindow( wnd.Gfx() );
-	light.SpawnControlWindow();
-	ShowImguiDemoWindow();
-	cube.SpawnControlWindow( wnd.Gfx(),"Cube 1" );
-	cube2.SpawnControlWindow( wnd.Gfx(),"Cube 2" );
-	
-	rg.RenderWindows( wnd.Gfx() );
+
+	if (showImguiDebugWindows)
+	{
+
+		// imgui windows
+		static MP sponzeProbe{ "Sponza" };
+		static MP gobberProbe{ "Gobber" };
+		static MP nanoProbe{ "Nano" };
+		sponzeProbe.SpawnWindow(sponza);
+		gobberProbe.SpawnWindow(gobber);
+		nanoProbe.SpawnWindow(nano);
+
+		cameras.SpawnWindow(wnd.Gfx());
+		light.SpawnControlWindow();
+		ShowImguiDemoWindow();
+		cube.SpawnControlWindow(wnd.Gfx(), "Cube 1");
+		cube2.SpawnControlWindow(wnd.Gfx(), "Cube 2");
+
+		rg.RenderWindows(wnd.Gfx());
+	}
 
 	// present
 	wnd.Gfx().EndFrame();

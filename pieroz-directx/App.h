@@ -38,4 +38,5 @@ private:
 	Model gobber{ wnd.Gfx(),"Models\\gobber\\GoblinX.obj",4.0f };
 	Model nano{ wnd.Gfx(),"Models\\nano_textured\\nanosuit.obj",2.0f };
 	bool savingDepth = false;
+	bool showImguiDebugWindows = false;
 };
