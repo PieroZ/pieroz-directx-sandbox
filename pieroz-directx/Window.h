@@ -80,6 +80,7 @@ public:
 	bool CursorEnabled() const noexcept;
 	static std::optional<int> ProcessMessages() noexcept;
 	Graphics& Gfx();
+	void ToggleFullscreen() noexcept;
 private:
 	void ConfineCursor() noexcept;
 	void FreeCursor() noexcept;
@@ -95,8 +96,12 @@ public:
 	Mouse mouse;
 private:
 	bool cursorEnabled = true;
+	bool isFullscreen = false;
 	int width;
 	int height;
+	RECT windowRectBeforeFullscreen{};
+	DWORD styleBefore = 0;
+	DWORD exStyleBefore = 0;
 	HWND hWnd;
 	std::unique_ptr<Graphics> pGfx;
 	std::vector<BYTE> rawBuffer;

@@ -541,3 +541,43 @@ const char* Window::NoGfxException::GetType() const noexcept
 {
 	return "Chili Window Exception [No Graphics]";
 }
+
+void Window::ToggleFullscreen() noexcept
+{
+	// toggle to fullscreen
+	if( !isFullscreen )
+	{
+		// save state
+		styleBefore = static_cast<DWORD>(GetWindowLong( hWnd, GWL_STYLE ));
+		exStyleBefore = static_cast<DWORD>(GetWindowLong( hWnd, GWL_EXSTYLE ));
+		GetWindowRect( hWnd, &windowRectBeforeFullscreen );
+
+		// get monitor size containing the window
+		MONITORINFO mi = { sizeof(mi) };
+		HMONITOR hmon = MonitorFromWindow( hWnd, MONITOR_DEFAULTTONEAREST );
+		if( GetMonitorInfo( hmon, &mi ) )
+		{
+			// remove window chrome and resize to monitor
+			SetWindowLong( hWnd, GWL_STYLE, styleBefore & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU) );
+			SetWindowLong( hWnd, GWL_EXSTYLE, exStyleBefore & ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE) );
+			SetWindowPos( hWnd, HWND_TOP,
+				mi.rcMonitor.left, mi.rcMonitor.top,
+				mi.rcMonitor.right - mi.rcMonitor.left,
+				mi.rcMonitor.bottom - mi.rcMonitor.top,
+				SWP_NOOWNERZORDER | SWP_FRAMECHANGED );
+		}
+		isFullscreen = true;
+	}
+	else // restore windowed
+	{
+		SetWindowLong( hWnd, GWL_STYLE, styleBefore );
+		SetWindowLong( hWnd, GWL_EXSTYLE, exStyleBefore );
+		SetWindowPos( hWnd, HWND_TOP,
+			windowRectBeforeFullscreen.left,
+			windowRectBeforeFullscreen.top,
+			windowRectBeforeFullscreen.right - windowRectBeforeFullscreen.left,
+			windowRectBeforeFullscreen.bottom - windowRectBeforeFullscreen.top,
+			SWP_NOOWNERZORDER | SWP_FRAMECHANGED );
+		isFullscreen = false;
+	}
+}

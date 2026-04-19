@@ -74,6 +74,9 @@ void App::HandleInput( float dt )
 		case VK_F2:
 			showImguiDebugWindows = !showImguiDebugWindows;
 			break;
+		case VK_F4:
+			wnd.ToggleFullscreen();
+			break;
 		case VK_RETURN:
 			savingDepth = true;
 			break;
