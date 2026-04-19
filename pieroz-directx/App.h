@@ -9,6 +9,8 @@
 #include "ScriptCommander.h"
 #include "BlurOutlineRenderGraph.h"
 #include "ChiliMath.h"
+#include <memory>
+#include <string>
 
 class App
 {
@@ -36,7 +38,14 @@ private:
 	TestCube cube2{ wnd.Gfx(),4.0f };
 	Model sponza{ wnd.Gfx(),"Models\\sponza\\sponza.obj",1.0f / 20.0f };
 	Model gobber{ wnd.Gfx(),"Models\\gobber\\GoblinX.obj",4.0f };
-	Model nano{ wnd.Gfx(),"Models\\nano_textured\\nanosuit.obj",2.0f };
+	//Model nano{ wnd.Gfx(),"Models\\nano_textured\\nanosuit.obj",2.0f };
+
+	std::unique_ptr<Model> dynamicModel;
+	float dynamicModelScale = 1.0f;
+	std::string dynamicModelLoadError;
+
+
+
 	bool savingDepth = false;
 	bool showImguiDebugWindows = false;
 };

@@ -1,5 +1,6 @@
 #include "App.h"
 #include <algorithm>
+
 #include "ChiliMath.h"
 #include "imgui/imgui.h"
 #include "ChiliUtil.h"
@@ -10,7 +11,27 @@
 #include "Camera.h"
 #include "Channels.h"
 
+#include <commdlg.h> // GetOpenFileName
+#include <array>
+
 namespace dx = DirectX;
+
+static std::string OpenModelFileDialog()
+{
+	std::array<char, MAX_PATH> buf{};
+	OPENFILENAMEA ofn{};
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = nullptr; // ok bez HWND; można podać okno aplikacji
+	ofn.lpstrFile = buf.data();
+	ofn.nMaxFile = (DWORD)buf.size();
+	ofn.lpstrFilter = "Model Files\0*.obj;*.fbx;*.gltf;*.dae;*.3ds\0All Files\0*.*\0";
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+	if (GetOpenFileNameA(&ofn))
+	{
+		return std::string(buf.data());
+	}
+	return {};
+}
 
 App::App( const std::string& commandLine )
 	:
@@ -25,10 +46,10 @@ App::App( const std::string& commandLine )
 
 	cube.SetPos( { 10.0f,5.0f,6.0f } );
 	cube2.SetPos( { 10.0f,5.0f,14.0f } );
-	nano.SetRootTransform(
-		dx::XMMatrixRotationY( PI / 2.f ) *
-		dx::XMMatrixTranslation( 27.f,-0.56f,1.7f )
-	);
+	//nano.SetRootTransform(
+	//	dx::XMMatrixRotationY( PI / 2.f ) *
+	//	dx::XMMatrixTranslation( 27.f,-0.56f,1.7f )
+	//);
 	gobber.SetRootTransform(
 		dx::XMMatrixRotationY( -PI / 2.f ) *
 		dx::XMMatrixTranslation( -8.f,10.f,0.f )
@@ -39,7 +60,7 @@ App::App( const std::string& commandLine )
 	light.LinkTechniques( rg );
 	sponza.LinkTechniques( rg );
 	gobber.LinkTechniques( rg );
-	nano.LinkTechniques( rg );
+	//nano.LinkTechniques( rg );
 	cameras.LinkTechniques( rg );
 
 	rg.BindShadowCamera( *light.ShareCamera() );
@@ -131,15 +152,23 @@ void App::DoFrame( float dt )
 	sponza.Submit( Chan::main );
 	cube2.Submit( Chan::main );
 	gobber.Submit( Chan::main );
-	nano.Submit( Chan::main );
+	//nano.Submit( Chan::main );
 	cameras.Submit( Chan::main );
+
+
+	if (dynamicModel)
+	{
+		dynamicModel->Submit(Chan::main);
+		dynamicModel->Submit(Chan::shadow);
+	}
+
 
 	sponza.Submit( Chan::shadow );
 	cube.Submit( Chan::shadow );
 	sponza.Submit( Chan::shadow );
 	cube2.Submit( Chan::shadow );
 	gobber.Submit( Chan::shadow );
-	nano.Submit( Chan::shadow );
+	//nano.Submit( Chan::shadow );
 
 	rg.Execute( wnd.Gfx() );
 
@@ -158,7 +187,7 @@ void App::DoFrame( float dt )
 		static MP nanoProbe{ "Nano" };
 		sponzeProbe.SpawnWindow(sponza);
 		gobberProbe.SpawnWindow(gobber);
-		nanoProbe.SpawnWindow(nano);
+		//nanoProbe.SpawnWindow(nano);
 
 		cameras.SpawnWindow(wnd.Gfx());
 		light.SpawnControlWindow();
@@ -168,6 +197,55 @@ void App::DoFrame( float dt )
 
 		rg.RenderWindows(wnd.Gfx());
 	}
+
+	{
+		ImGui::Begin("Model Loader");
+		static char pathBuf[MAX_PATH] = "";
+		ImGui::InputText("Path", &pathBuf[0], MAX_PATH);
+		ImGui::InputFloat("Scale", &dynamicModelScale, 0.1f, 1.0f, "%.3f");
+
+		if (ImGui::Button("Browse..."))
+		{
+			const auto sel = OpenModelFileDialog();
+			if (!sel.empty())
+			{
+				// skopiuj ścieżkę do inputa
+				strncpy_s(pathBuf, sel.c_str(), MAX_PATH);
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Load Model"))
+		{
+			// próbujemy wczytać model, złap wyjątki i zapisz błąd do wyświetlenia
+			try
+			{
+				dynamicModel = std::make_unique<Model>(wnd.Gfx(), std::string(pathBuf), dynamicModelScale);
+				dynamicModelLoadError.clear();
+
+				dynamicModel->SetRootTransform(
+					dx::XMMatrixRotationY(PI / 2.f) *
+					dx::XMMatrixTranslation(27.f, -0.56f, 1.7f)
+				);
+
+				dynamicModel->LinkTechniques(rg);
+				// opcjonalnie: ustaw transform, linkuj techniki itp.
+				// dynamicModel->SetRootTransform( ... );
+				// dynamicModel->LinkTechniques( rg );
+			}
+			catch (const std::exception& e)
+			{
+				dynamicModelLoadError = e.what();
+			}
+		}
+
+		if (!dynamicModelLoadError.empty())
+		{
+			ImGui::TextColored(ImVec4(1, 0, 0, 1), "Load error: %s", dynamicModelLoadError.c_str());
+		}
+		ImGui::End();
+	}
+
+
 
 	// present
 	wnd.Gfx().EndFrame();
