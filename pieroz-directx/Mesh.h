@@ -20,6 +20,8 @@ public:
 		DirectX::FXMVECTOR rayOrigin,
 		DirectX::FXMVECTOR rayDir,
 		DirectX::FXMMATRIX worldTransform) const noexcept;
+	const std::vector<DirectX::XMFLOAT3>& GetCpuPositions() const noexcept { return cpuPositions; }
+	const std::vector<unsigned short>& GetCpuIndices() const noexcept { return cpuIndices; }
 private:
 	mutable DirectX::XMFLOAT4X4 transform;
 	std::vector<DirectX::XMFLOAT3> cpuPositions;

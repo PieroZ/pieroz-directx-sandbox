@@ -14,6 +14,7 @@
 #include <string>
 
 class Mesh;
+class TriangleIndicator;
 
 class App
 {
@@ -54,9 +55,10 @@ private:
 	Mesh* pPickedMesh = nullptr;
 	size_t pickedFaceIndex = 0;
 	float pickedDistance = 0.0f;
-	Mesh* pPrevOutlinedMesh = nullptr;
+	//Mesh* pPrevOutlinedMesh = nullptr;
 	Mesh* pPrevWireframeMesh = nullptr;
 	bool showWireframe = false;
+	std::unique_ptr<TriangleIndicator> pTriIndicator;
 
 
 	bool savingDepth = false;

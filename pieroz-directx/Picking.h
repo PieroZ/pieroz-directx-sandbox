@@ -9,6 +9,7 @@ struct PickResult
 	Mesh* pMesh = nullptr;
 	size_t faceIndex = 0;
 	float distance = 0.0f;
+	DirectX::XMFLOAT4X4 worldTransform;
 };
 
 namespace Picking

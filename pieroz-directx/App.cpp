@@ -13,6 +13,7 @@
 #include "Picking.h"
 #include "Mesh.h"
 #include "Texture.h"
+#include "TriangleIndicator.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -189,6 +190,11 @@ void App::DoFrame( float dt )
 	//nano.Submit( Chan::main );
 	cameras.Submit( Chan::main );
 
+	// Submit single-triangle highlight indicator
+	if (pTriIndicator)
+	{
+		pTriIndicator->Submit(Chan::main);
+	}
 
 	if (dynamicModel)
 	{
@@ -313,17 +319,17 @@ void App::PerformPicking()
 	auto [rayOrigin, rayDir] = Picking::ScreenToRay(mouseX, mouseY, vpWidth, vpHeight, projMatrix, viewMatrix);
 
 	// Disable outline on previously selected mesh
-	if( pPrevOutlinedMesh)
-	{
-		for (auto& tech : pPrevOutlinedMesh->GetTechniques())
-		{
-			if( tech.GetName() == "Outline")
-			{
-				tech.SetActiveState(false);
-			}
-		}
-		pPrevOutlinedMesh = nullptr;
-	}
+	//if( pPrevOutlinedMesh)
+	//{
+	//	for (auto& tech : pPrevOutlinedMesh->GetTechniques())
+	//	{
+	//		if( tech.GetName() == "Outline")
+	//		{
+	//			tech.SetActiveState(false);
+	//		}
+	//	}
+	//	pPrevOutlinedMesh = nullptr;
+	//}
 
 
 	// Disable wireframe on previously selected mesh
@@ -340,9 +346,13 @@ void App::PerformPicking()
 	}
 	showWireframe = false;
 
+	// clear old triangle indicator
+	pTriIndicator.reset();
+
 	// Test all models
 	pPickedMesh = nullptr;
 	float bestDist = FLT_MAX;
+	DirectX::XMFLOAT4X4 bestWorldTransform;
 
 	auto testModel = [&](Model& model)
 	{
@@ -354,6 +364,7 @@ void App::PerformPicking()
 				pPickedMesh = hit->pMesh;
 				pickedFaceIndex = hit->faceIndex;
 				pickedDistance = hit->distance;
+				bestWorldTransform = hit->worldTransform;
 			}
 		}
 	};
@@ -365,17 +376,22 @@ void App::PerformPicking()
 		testModel(*dynamicModel);
 	}
 
-	// Enable outline on newly picked mesh
+	// Build single-triangle indicator for the picked face
 	if (pPickedMesh)
 	{
-		for (auto& tech : pPickedMesh->GetTechniques())
-		{
-			if (tech.GetName() == "Outline")
-			{
-				tech.SetActiveState(true);
-			}
-		}
-		pPrevOutlinedMesh = pPickedMesh;
+		const auto& indices = pPickedMesh->GetCpuIndices();
+		const auto& positions = pPickedMesh->GetCpuPositions();
+		const auto worldMat = DirectX::XMLoadFloat4x4(&bestWorldTransform);
+
+		// Transform local-space triangle vertices to world space
+		DirectX::XMFLOAT3 wv0, wv1, wv2;
+		DirectX::XMStoreFloat3(&wv0, DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&positions[indices[pickedFaceIndex * 3 + 0]]), worldMat));
+		DirectX::XMStoreFloat3(&wv1, DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&positions[indices[pickedFaceIndex * 3 + 1]]), worldMat));
+		DirectX::XMStoreFloat3(&wv2, DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&positions[indices[pickedFaceIndex * 3 + 2]]), worldMat));
+
+
+		pTriIndicator = std::make_unique<TriangleIndicator>(wnd.Gfx(), wv0, wv1, wv2);
+		pTriIndicator->LinkTechniques(rg);
 	}
 }
 
@@ -475,18 +491,20 @@ void App::ShowPickingWindow()
 	ImGui::Separator();
 	if (ImGui::Button("Deselect"))
 	{
-		if (pPrevOutlinedMesh)
+		if (pPrevWireframeMesh)
 		{
-			for (auto& tech : pPrevOutlinedMesh->GetTechniques())
+			for (auto& tech : pPrevWireframeMesh->GetTechniques())
 			{
-				if (tech.GetName() == "Outline")
+				if (tech.GetName() == "Wireframe")
 				{
 					tech.SetActiveState(false);
 				}
 			}
-			pPrevOutlinedMesh = nullptr;
-			pPickedMesh = nullptr;
+			pPrevWireframeMesh = nullptr;
 		}
+		showWireframe = false;
+		pPickedMesh = nullptr;
+		pTriIndicator.reset();
 	}
 	ImGui::End();
 

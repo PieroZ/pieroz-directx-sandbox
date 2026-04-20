@@ -90,6 +90,7 @@ void Node::Pick(DirectX::XMVECTOR& rayOrigin, DirectX::XMVECTOR& rayDir, DirectX
 				bestHit.pMesh = pm;
 				bestHit.faceIndex = faceIdx;
 				bestHit.distance = dist;
+				dx::XMStoreFloat4x4(&bestHit.worldTransform, built);
 			}
 		}
 	}
