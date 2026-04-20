@@ -325,6 +325,21 @@ void App::PerformPicking()
 		pPrevOutlinedMesh = nullptr;
 	}
 
+
+	// Disable wireframe on previously selected mesh
+	if (pPrevWireframeMesh)
+	{
+		for (auto& tech : pPrevWireframeMesh->GetTechniques())
+		{
+			if (tech.GetName() == "Wireframe")
+			{
+				tech.SetActiveState(false);
+			}
+		}
+		pPrevWireframeMesh = nullptr;
+	}
+	showWireframe = false;
+
 	// Test all models
 	pPickedMesh = nullptr;
 	float bestDist = FLT_MAX;
@@ -375,11 +390,43 @@ void App::ShowPickingWindow()
 	}
 	else
 	{
+		//const size_t totalFaces = pPickedMesh->GetCpuIndices().size() / 3;
+		//const size_t totalVertices = pPickedMesh->GetCpuPositions().size();
+
 		ImGui::TextColored({ 0.4f,1.0f, 0.6f, 1.0f }, "Selected Mesh");
 		ImGui::Text("Face index %zu", pickedFaceIndex);
 		ImGui::Text("Distance %.2f", pickedDistance);
 		//ImGui::Text("Total faces", pPickedMesh->GetCpuIndices().size);
 		//ImGui::Text("Total vertices %zu", pPickedMesh->getCpu);
+
+
+		ImGui::Separator();
+		//Wireframe toggle
+		{
+			if (ImGui::Checkbox("Show Wireframe", &showWireframe))
+			{
+				//Disable old wireframe mesh if different
+				if (pPrevWireframeMesh && pPrevWireframeMesh != pPickedMesh)
+				{
+					for (auto& tech : pPrevWireframeMesh->GetTechniques())
+					{
+						if (tech.GetName() == "Wireframe")
+						{
+							tech.SetActiveState(false);
+						}
+					}
+				}
+
+				for (auto& tech : pPickedMesh->GetTechniques())
+				{
+					if (tech.GetName() == "Wireframe")
+					{
+						tech.SetActiveState(showWireframe);
+					}
+				}
+				pPrevWireframeMesh = showWireframe ? pPickedMesh : nullptr;
+			}
+		}
 
 		ImGui::Separator();
 		ImGui::TextColored({ 0.4f,1.0f, 0.6f, 1.0f }, "Textures");

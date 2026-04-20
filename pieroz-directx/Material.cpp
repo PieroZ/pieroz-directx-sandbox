@@ -180,6 +180,30 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 		}
 		techniques.push_back( std::move( map ) );
 	}
+	// wireframe technique (stats disabled, toggled via picking)
+	{
+		Technique wire{ "Wireframe", Chan::main,false };
+		{
+			Step draw("wireframe");
+			{
+				Dcb::RawLayout lay;
+				lay.Add<Dcb::Float3>( "materialColor" );
+				auto buf = Dcb::Buffer( std::move( lay ) );
+				buf["materialColor"] = DirectX::XMFLOAT3{ 1.0f,1.0f,0.0f };
+				draw.AddBindable(std::make_shared<Bind::CachingPixelConstantBufferEx>(gfx, buf, 1u));
+			}
+
+			auto pvs = VertexShader::Resolve(gfx, "Solid_VS.cso");
+			draw.AddBindable(InputLayout::Resolve(gfx, vtxLayout, *pvs));
+			draw.AddBindable(std::move(pvs));
+			draw.AddBindable(PixelShader::Resolve(gfx, "Solid_PS.cso"));
+			draw.AddBindable(Rasterizer::Resolve(gfx, true, true));
+			draw.AddBindable(Stencil::Resolve(gfx, Stencil::Mode::DepthFirst));
+			draw.AddBindable(std::make_shared<TransformCbuf>(gfx));
+			wire.AddStep(std::move(draw));
+		}
+		techniques.push_back(std::move(wire));
+	}
 }
 Dvtx::VertexBuffer Material::ExtractVertices( const aiMesh& mesh ) const noexcept
 {

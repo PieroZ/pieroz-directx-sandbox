@@ -55,6 +55,8 @@ private:
 	size_t pickedFaceIndex = 0;
 	float pickedDistance = 0.0f;
 	Mesh* pPrevOutlinedMesh = nullptr;
+	Mesh* pPrevWireframeMesh = nullptr;
+	bool showWireframe = false;
 
 
 	bool savingDepth = false;
