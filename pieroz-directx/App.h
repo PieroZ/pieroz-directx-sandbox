@@ -9,8 +9,11 @@
 #include "ScriptCommander.h"
 #include "BlurOutlineRenderGraph.h"
 #include "ChiliMath.h"
+#include "Picking.h"
 #include <memory>
 #include <string>
+
+class Mesh;
 
 class App
 {
@@ -23,6 +26,9 @@ private:
 	void DoFrame( float dt );
 	void HandleInput( float dt );
 	void ShowImguiDemoWindow();
+	void PerformPicking();
+	void ShowPickingWindow();
+
 private:
 	std::string commandLine;
 	bool showDemoWindow = false;
@@ -44,6 +50,11 @@ private:
 	float dynamicModelScale = 1.0f;
 	std::string dynamicModelLoadError;
 
+	// Picking state
+	Mesh* pPickedMesh = nullptr;
+	size_t pickedFaceIndex = 0;
+	float pickedDistance = 0.0f;
+	Mesh* pPrevOutlinedMesh = nullptr;
 
 
 	bool savingDepth = false;

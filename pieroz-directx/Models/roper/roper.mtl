@@ -285,7 +285,7 @@ Ni 1.450000
 d 1.000000
 illum 1
 map_Kd tex042hi.png
-map_Ks Muro_body_sm.png
+map_Ks tex042hi_sm.png
 
 newmtl Material.43
 Ns 0.000000

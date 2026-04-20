@@ -10,6 +10,9 @@
 #include "Testing.h"
 #include "Camera.h"
 #include "Channels.h"
+#include "Picking.h"
+#include "Mesh.h"
+#include "Texture.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -21,10 +24,27 @@ static std::string OpenModelFileDialog()
 	std::array<char, MAX_PATH> buf{};
 	OPENFILENAMEA ofn{};
 	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = nullptr; // ok bez HWND; można podać okno aplikacji
+	ofn.hwndOwner = nullptr; 
 	ofn.lpstrFile = buf.data();
 	ofn.nMaxFile = (DWORD)buf.size();
 	ofn.lpstrFilter = "Model Files\0*.obj;*.fbx;*.gltf;*.dae;*.3ds\0All Files\0*.*\0";
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+	if (GetOpenFileNameA(&ofn))
+	{
+		return std::string(buf.data());
+	}
+	return {};
+}
+
+static std::string OpenTextureFileDialog()
+{
+	std::array<char, MAX_PATH> buf{};
+	OPENFILENAMEA ofn{};
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = nullptr; 
+	ofn.lpstrFile = buf.data();
+	ofn.nMaxFile = (DWORD)buf.size();
+	ofn.lpstrFilter = "Image Files\0*.png;*.jpg;*.jpeg;*.bmp;*.tga\0All Files\0*.*\0";
 	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
 	if (GetOpenFileNameA(&ofn))
 	{
@@ -139,6 +159,20 @@ void App::HandleInput( float dt )
 			cameras->Rotate( (float)delta->x,(float)delta->y );
 		}
 	}
+
+	// Left-click picking when cursor is enabled
+	while(const auto e = wnd.mouse.Read() )
+	{
+		if( e->GetType() == Mouse::Event::Type::LPress && wnd.CursorEnabled() )
+		{
+			// Don't pick if ImGui captured the mouse
+			if (!ImGui::GetIO().WantCaptureMouse)
+			{
+				PerformPicking();
+				//break; // Only handle one click per frame
+			}
+		}
+	}
 }
 
 void App::DoFrame( float dt )
@@ -251,7 +285,8 @@ void App::DoFrame( float dt )
 		ImGui::End();
 	}
 
-
+	// Picking/selection window
+	ShowPickingWindow();
 
 	// present
 	wnd.Gfx().EndFrame();
@@ -264,6 +299,161 @@ void App::ShowImguiDemoWindow()
 	{
 		ImGui::ShowDemoWindow( &showDemoWindow );
 	}
+}
+
+void App::PerformPicking()
+{
+	const auto [mouseX, mouseY] = wnd.mouse.GetPos();
+	const int vpWidth = (int)wnd.Gfx().GetWidth();
+	const int vpHeight = (int)wnd.Gfx().GetHeight();
+
+	const auto viewMatrix = cameras->GetMatrix();
+	const auto projMatrix = wnd.Gfx().GetProjection();
+
+	auto [rayOrigin, rayDir] = Picking::ScreenToRay(mouseX, mouseY, vpWidth, vpHeight, projMatrix, viewMatrix);
+
+	// Disable outline on previously selected mesh
+	if( pPrevOutlinedMesh)
+	{
+		for (auto& tech : pPrevOutlinedMesh->GetTechniques())
+		{
+			if( tech.GetName() == "Outline")
+			{
+				tech.SetActiveState(false);
+			}
+		}
+		pPrevOutlinedMesh = nullptr;
+	}
+
+	// Test all models
+	pPickedMesh = nullptr;
+	float bestDist = FLT_MAX;
+
+	auto testModel = [&](Model& model)
+	{
+		if (auto hit = model.Pick(rayOrigin, rayDir))
+		{
+			if (hit->distance < bestDist)
+			{
+				bestDist = hit->distance;
+				pPickedMesh = hit->pMesh;
+				pickedFaceIndex = hit->faceIndex;
+				pickedDistance = hit->distance;
+			}
+		}
+	};
+
+	testModel(sponza);
+	testModel(gobber);
+	if(dynamicModel)
+	{
+		testModel(*dynamicModel);
+	}
+
+	// Enable outline on newly picked mesh
+	if (pPickedMesh)
+	{
+		for (auto& tech : pPickedMesh->GetTechniques())
+		{
+			if (tech.GetName() == "Outline")
+			{
+				tech.SetActiveState(true);
+			}
+		}
+		pPrevOutlinedMesh = pPickedMesh;
+	}
+}
+
+void App::ShowPickingWindow()
+{
+	ImGui::Begin("Mesh Picker");
+
+	if (pPickedMesh == nullptr)
+	{
+		ImGui::TextColored( {0.7f,0.7f, 0.7f, 1.0f}, "Left-click on a mesh to select it");
+		ImGui::Text("(cursor must be enabled)");
+	}
+	else
+	{
+		ImGui::TextColored({ 0.4f,1.0f, 0.6f, 1.0f }, "Selected Mesh");
+		ImGui::Text("Face index %zu", pickedFaceIndex);
+		ImGui::Text("Distance %.2f", pickedDistance);
+		//ImGui::Text("Total faces", pPickedMesh->GetCpuIndices().size);
+		//ImGui::Text("Total vertices %zu", pPickedMesh->getCpu);
+
+		ImGui::Separator();
+		ImGui::TextColored({ 0.4f,1.0f, 0.6f, 1.0f }, "Textures");
+
+		// Find and display current textures for the Phon technique
+		for (auto& tech : pPickedMesh->GetTechniques())
+		{
+
+			if (tech.GetName() != "Phong")
+			{
+				continue;
+			}
+
+			for (auto& step : tech.GetSteps())
+			{
+				for (size_t i = 0; i < step.GetBindables().size(); i++)
+				{
+					auto& bindable = step.GetBindables()[i];
+					if (auto* pTex = dynamic_cast<Bind::Texture*>(bindable.get()))
+					{
+						const char* slotNames[] = { "Diffuse", "Specular", "Normal" };
+						UINT slot = pTex->GetSlot();
+						const char* slotName = (slot < 3) ? slotNames[slot] : "Unknown";
+
+						ImGui::PushID((int)i);
+						ImGui::Text("%s: %s", slotName, pTex->GetPath().c_str());
+
+						std::string btnLabel = std::string("Change") + slotName + "...";
+						if (ImGui::Button(btnLabel.c_str()))
+						{
+							const auto newPath = OpenTextureFileDialog();
+							if (!newPath.empty())
+							{
+								// Replace the texture bindable with a new one
+								auto nextTex = std::make_shared<Bind::Texture>(wnd.Gfx(), newPath, slot);
+								step.GetBindables()[i] = std::move(nextTex)	;
+							}
+						}
+						ImGui::PopID();
+					}
+				}
+			}
+		}
+	}
+
+	ImGui::Separator();
+	if (ImGui::Button("Deselect"))
+	{
+		if (pPrevOutlinedMesh)
+		{
+			for (auto& tech : pPrevOutlinedMesh->GetTechniques())
+			{
+				if (tech.GetName() == "Outline")
+				{
+					tech.SetActiveState(false);
+				}
+			}
+			pPrevOutlinedMesh = nullptr;
+			pPickedMesh = nullptr;
+		}
+	}
+	ImGui::End();
+
+	//if (pPickedMesh)
+	//{
+	//	ImGui::Text("Picked Mesh: %p", pPickedMesh);
+	//	ImGui::Text("Face Index: %zu", pickedFaceIndex);
+	//	ImGui::Text("Distance: %.3f", pickedDistance);
+	//}
+	//else
+	//{
+	//	ImGui::Text("No mesh picked");
+	//}
+	//ImGui::End();
 }
 
 App::~App()

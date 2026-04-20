@@ -2,6 +2,7 @@
 #include "Mesh.h"
 #include "ModelProbe.h"
 #include "imgui/imgui.h"
+#include "Picking.h"
 
 namespace dx = DirectX;
 
@@ -69,5 +70,31 @@ void Node::Accept( TechniqueProbe& probe )
 	for( auto& mp : meshPtrs )
 	{
 		mp->Accept( probe );
+	}
+}
+
+void Node::Pick(DirectX::XMVECTOR& rayOrigin, DirectX::XMVECTOR& rayDir, DirectX::FXMMATRIX accumulatedTransform, PickResult& bestHit) const noexcept
+{
+	const auto built =
+		dx::XMLoadFloat4x4(&appliedTransform) *
+		dx::XMLoadFloat4x4(&transform) *
+		accumulatedTransform;
+
+	for (const auto pm : meshPtrs)
+	{
+		if (auto result = pm->Intersect(rayOrigin, rayDir, built))
+		{
+			const auto& [faceIdx, dist] = *result;
+			if (bestHit.pMesh == nullptr || dist < bestHit.distance)
+			{
+				bestHit.pMesh = pm;
+				bestHit.faceIndex = faceIdx;
+				bestHit.distance = dist;
+			}
+		}
+	}
+	for (const auto& pc : childPtrs)
+	{
+		pc->Pick(rayOrigin, rayDir, built, bestHit);
 	}
 }

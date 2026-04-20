@@ -23,6 +23,7 @@ public:
 	void Accept( TechniqueProbe& probe );
 	const std::string& GetName() const noexcept;
 	void Link( Rgph::RenderGraph& );
+	std::vector<Step>& GetSteps() noexcept { return steps; }
 private:
 	bool active = true;
 	std::vector<Step> steps;

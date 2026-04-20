@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "Material.h"
 #include "ChiliXM.h"
+#include "Picking.h"
 
 namespace dx = DirectX;
 
@@ -65,6 +66,21 @@ void Model::LinkTechniques( Rgph::RenderGraph& rg )
 	{
 		pMesh->LinkTechniques( rg );
 	}
+}
+
+std::optional<PickResult> Model::Pick(DirectX::XMVECTOR& rayOrigin, DirectX::XMVECTOR& rayDir) const noexcept
+{
+	PickResult best;
+	best.pMesh = nullptr;
+	best.faceIndex = 0;
+	best.distance = FLT_MAX;
+
+	pRoot->Pick(rayOrigin, rayDir, dx::XMMatrixIdentity(), best);
+	if (best.pMesh != nullptr)
+	{
+		return best;
+	}
+	return std::nullopt;
 }
 
 Model::~Model() noexcept

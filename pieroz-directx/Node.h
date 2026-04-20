@@ -1,10 +1,12 @@
 #pragma once
 #include "Graphics.h"
+#include <optional>
 
 class Model;
 class Mesh;
 class TechniqueProbe;
 class ModelProbe;
+class PickResult;
 
 class Node
 {
@@ -25,6 +27,11 @@ public:
 	{
 		return name;
 	}
+	const std::vector<Mesh*>& GetMeshPtrs() const noexcept
+	{
+		return meshPtrs;
+	}
+	void Pick(DirectX::XMVECTOR& rayOrigin, DirectX::XMVECTOR& rayDir, DirectX::FXMMATRIX accumulatedTransform, PickResult& bestHit) const noexcept;
 private:
 	void AddChild( std::unique_ptr<Node> pChild ) noxnd;
 private:

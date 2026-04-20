@@ -1,8 +1,10 @@
 #pragma once
 #include "Graphics.h"
+#include "Picking.h"
 #include <string>
 #include <memory>
 #include <filesystem>
+#include <optional>
 
 class Node;
 class Mesh;
@@ -24,6 +26,7 @@ public:
 	void SetRootTransform( DirectX::FXMMATRIX tf ) noexcept;
 	void Accept( class ModelProbe& probe );
 	void LinkTechniques( Rgph::RenderGraph& );
+	std::optional<PickResult> Pick(DirectX::XMVECTOR& rayOrigin, DirectX::XMVECTOR& rayDir) const noexcept;
 	~Model() noexcept;
 private:
 	static std::unique_ptr<Mesh> ParseMesh( Graphics& gfx,const aiMesh& mesh,const aiMaterial* const* pMaterials,const std::filesystem::path& path,float scale );

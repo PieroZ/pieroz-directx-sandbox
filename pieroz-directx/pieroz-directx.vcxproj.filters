@@ -662,9 +662,12 @@
     <ClInclude Include="cnpy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Picking.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="hw3d.rc">
+    <ResourceCompile Include="pieroz-directx.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
