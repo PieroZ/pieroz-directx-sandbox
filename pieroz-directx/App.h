@@ -10,6 +10,7 @@
 #include "BlurOutlineRenderGraph.h"
 #include "ChiliMath.h"
 #include "Picking.h"
+#include "UVEditorWindow.h"
 #include <memory>
 #include <string>
 
@@ -59,6 +60,7 @@ private:
 	Mesh* pPrevWireframeMesh = nullptr;
 	bool showWireframe = false;
 	std::unique_ptr<TriangleIndicator> pTriIndicator;
+	UVEditorWindow uvEditor;
 
 
 	bool savingDepth = false;

@@ -2,6 +2,7 @@
 #include "Graphics.h"
 #include "Drawable.h"
 #include "ConditionalNoexcept.h"
+#include "Vertex.h"
 #include <optional>
 
 class Material;
@@ -22,8 +23,16 @@ public:
 		DirectX::FXMMATRIX worldTransform) const noexcept;
 	const std::vector<DirectX::XMFLOAT3>& GetCpuPositions() const noexcept { return cpuPositions; }
 	const std::vector<unsigned short>& GetCpuIndices() const noexcept { return cpuIndices; }
+	const std::vector<DirectX::XMFLOAT2>& GetCpuUVs() const noexcept { return cpuUVs; }
+	void SetCpuUV(size_t vertexIndex, const DirectX::XMFLOAT2 & uv) noexcept;
+	bool HasUVs() const noexcept { return !cpuUVs.empty(); }
+	void UpdateGpuVertexBuffer(Graphics& gfx);
+
 private:
 	mutable DirectX::XMFLOAT4X4 transform;
 	std::vector<DirectX::XMFLOAT3> cpuPositions;
 	std::vector<unsigned short> cpuIndices;
+	std::vector<DirectX::XMFLOAT2> cpuUVs;
+	std::optional<Dvtx::VertexBuffer> cpuVertexData;
+	bool gpuDirty = false;
 };

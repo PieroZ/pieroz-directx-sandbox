@@ -318,6 +318,9 @@
     <ClCompile Include="TriangleIndicator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="UVEditorWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowsMessageMap.h">
@@ -669,6 +672,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TriangleIndicator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UVEditorWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

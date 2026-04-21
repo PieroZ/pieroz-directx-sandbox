@@ -16,6 +16,7 @@ namespace Bind
 		bool HasAlpha() const noexcept;
 		const std::string& GetPath() const noexcept { return path; }
 		UINT GetSlot() const noexcept { return slot; }
+		ID3D11ShaderResourceView* GetShaderResourceView() const noexcept { return pTextureView.Get(); }
 	private:
 		static UINT CalculateNumberOfMipLevels( UINT width,UINT height ) noexcept;
 	private:

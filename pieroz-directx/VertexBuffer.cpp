@@ -32,6 +32,12 @@ namespace Bind
 		return layout;
 	}
 
+	void VertexBuffer::Update(Graphics& gfx, const Dvtx::VertexBuffer& vbuf)
+	{
+		INFOMAN(gfx);
+		GetContext(gfx)->UpdateSubresource(pVertexBuffer.Get(), 0, nullptr, vbuf.GetData(), 0, 0);
+	}
+
 	void VertexBuffer::Bind( Graphics& gfx ) noxnd
 	{
 		const UINT offset = 0u;

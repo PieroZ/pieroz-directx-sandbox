@@ -294,6 +294,9 @@ void App::DoFrame( float dt )
 	// Picking/selection window
 	ShowPickingWindow();
 
+	// UV editor window
+	uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex);
+
 	// present
 	wnd.Gfx().EndFrame();
 	rg.Reset();

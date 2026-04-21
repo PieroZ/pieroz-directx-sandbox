@@ -263,6 +263,7 @@
     <ClCompile Include="TransformCbuf.cpp" />
     <ClCompile Include="TransformCbufScaling.cpp" />
     <ClCompile Include="TriangleIndicator.cpp" />
+    <ClCompile Include="UVEditorWindow.cpp" />
     <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="VertexBuffer.cpp" />
     <ClCompile Include="VertexShader.cpp" />
@@ -406,6 +407,7 @@
     <ClInclude Include="TransformCbuf.h" />
     <ClInclude Include="TransformCbufScaling.h" />
     <ClInclude Include="TriangleIndicator.h" />
+    <ClInclude Include="UVEditorWindow.h" />
     <ClInclude Include="Vertex.h" />
     <ClInclude Include="VertexBuffer.h" />
     <ClInclude Include="VertexShader.h" />

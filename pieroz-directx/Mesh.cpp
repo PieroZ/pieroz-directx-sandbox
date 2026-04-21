@@ -1,4 +1,5 @@
 #include "Mesh.h"
+#include "Material.h"
 #include "imgui/imgui.h"
 #include "Surface.h"
 #include <unordered_map>
@@ -10,6 +11,7 @@
 #include "LayoutCodex.h"
 #include "Stencil.h"
 #include "Picking.h"
+#include "VertexBuffer.h"
 #include <assimp/scene.h>
 
 namespace dx = DirectX;
@@ -36,6 +38,31 @@ Mesh::Mesh( Graphics& gfx,const Material& mat,const aiMesh& mesh,float scale ) n
 		cpuIndices.push_back(static_cast<unsigned short>(face.mIndices[0]));
 		cpuIndices.push_back(static_cast<unsigned short>(face.mIndices[1]));
 		cpuIndices.push_back(static_cast<unsigned short>(face.mIndices[2]));
+	}
+	// Store CPU-side UVs for UV editor
+	if (mesh.mTextureCoords[0]) // Check if UVs are present
+	{
+		cpuUVs.reserve(mesh.mNumVertices);
+		for (unsigned int i = 0; i < mesh.mNumVertices; i++)
+		{
+			const auto& uv = mesh.mTextureCoords[0][i];
+			cpuUVs.emplace_back(uv.x, uv.y);
+		}
+	}
+	// Store the full CPU-side vertex data for GPU updates
+	{
+		auto vtc = mat.ExtractVertices(mesh);
+		if (scale != 1.0f)
+		{
+			for (auto i = 0u; i < vtc.Size(); i++)
+			{
+				dx::XMFLOAT3& pos = vtc[i].Attr<Dvtx::VertexLayout::ElementType::Position3D>();
+				pos.x *= scale;
+				pos.y *= scale;
+				pos.z *= scale;
+			}
+		}
+		cpuVertexData.emplace(std::move(vtc));
 	}
 }
 
@@ -91,5 +118,27 @@ std::optional<std::pair<size_t, float>> Mesh::Intersect(
 	else
 	{
 		return std::nullopt;
+	}
+}
+
+void Mesh::SetCpuUV(size_t vertexIndex, const DirectX::XMFLOAT2& uv) noexcept
+{
+	if (vertexIndex < cpuUVs.size())
+	{
+		cpuUVs[vertexIndex] = uv;
+		// Also update tehe CPU vertex data copy
+		if (cpuVertexData && cpuVertexData->GetLayout().Has(Dvtx::VertexLayout::ElementType::Texture2D))
+		{
+			(*cpuVertexData)[(int)vertexIndex].Attr<Dvtx::VertexLayout::Texture2D>() = uv;
+		}
+		gpuDirty = true;
+	}
+}
+void Mesh::UpdateGpuVertexBuffer(Graphics& gfx)
+{
+	if (gpuDirty && cpuVertexData && pVertices)
+	{
+		pVertices->Update(gfx, *cpuVertexData);
+		gpuDirty = false;
 	}
 }
