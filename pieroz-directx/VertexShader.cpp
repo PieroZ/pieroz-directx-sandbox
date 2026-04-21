@@ -3,6 +3,7 @@
 #include "BindableCodex.h"
 #include <typeinfo>
 #include "ChiliUtil.h"
+#include <filesystem>
 
 namespace Bind
 {
@@ -11,6 +12,10 @@ namespace Bind
 		path( path )
 	{
 		INFOMAN( gfx );
+
+		auto fullPath = std::filesystem::absolute("ShaderBins\\" + path);
+		OutputDebugStringA(fullPath.string().c_str());
+		OutputDebugStringA("\n");
 
 		GFX_THROW_INFO( D3DReadFileToBlob( ToWide( "ShaderBins\\" + path ).c_str(),&pBytecodeBlob ) );
 		GFX_THROW_INFO( GetDevice( gfx )->CreateVertexShader(

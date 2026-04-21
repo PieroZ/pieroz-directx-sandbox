@@ -24,6 +24,7 @@ public:
 	const std::string& GetName() const noexcept;
 	void Link( Rgph::RenderGraph& );
 	std::vector<Step>& GetSteps() noexcept { return steps; }
+	const std::vector<Step>& GetSteps() const noexcept { return steps; }
 private:
 	bool active = true;
 	std::vector<Step> steps;

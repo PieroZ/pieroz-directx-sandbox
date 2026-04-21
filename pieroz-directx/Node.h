@@ -31,6 +31,15 @@ public:
 	{
 		return meshPtrs;
 	}
+	const std::vector<std::unique_ptr<Node>>& GetChildren() const noexcept
+	{
+		return childPtrs;
+	}
+	const DirectX::XMFLOAT4X4& GetBaseTransform() const noexcept
+	{
+		return transform;
+	}
+
 	void Pick(DirectX::XMVECTOR& rayOrigin, DirectX::XMVECTOR& rayDir, DirectX::FXMMATRIX accumulatedTransform, PickResult& bestHit) const noexcept;
 private:
 	void AddChild( std::unique_ptr<Node> pChild ) noxnd;

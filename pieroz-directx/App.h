@@ -11,8 +11,11 @@
 #include "ChiliMath.h"
 #include "Picking.h"
 #include "UVEditorWindow.h"
+#include "TexturedTriangleOverlay.h"
+#include "ObjExporter.h"
 #include <memory>
 #include <string>
+#include <vector>
 
 class Mesh;
 class TriangleIndicator;
@@ -30,6 +33,8 @@ private:
 	void ShowImguiDemoWindow();
 	void PerformPicking();
 	void ShowPickingWindow();
+	void RebuildTexturedOverlays();
+	void ShowExportWindow();
 
 private:
 	std::string commandLine;
@@ -61,6 +66,9 @@ private:
 	bool showWireframe = false;
 	std::unique_ptr<TriangleIndicator> pTriIndicator;
 	UVEditorWindow uvEditor;
+	std::vector<std::unique_ptr<TexturedTriangleOverlay>> texturedOverlays;
+	DirectX::XMFLOAT4X4 pickedWorldTransform;
+	std::string exportError;
 
 
 	bool savingDepth = false;

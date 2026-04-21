@@ -12,6 +12,7 @@
 #include "Stencil.h"
 #include "Picking.h"
 #include "VertexBuffer.h"
+#include "Texture.h"
 #include <assimp/scene.h>
 
 namespace dx = DirectX;
@@ -49,6 +50,17 @@ Mesh::Mesh( Graphics& gfx,const Material& mat,const aiMesh& mesh,float scale ) n
 			cpuUVs.emplace_back(uv.x, uv.y);
 		}
 	}
+	// Store CPU-side normals for export
+	if(mesh.mNormals)
+	{
+		cpuNormals.reserve(mesh.mNumVertices);
+		for (unsigned int i = 0; i < mesh.mNumVertices; i++)
+		{
+			const auto& n = mesh.mNormals[i];
+			cpuNormals.emplace_back(n.x, n.y, n.z);
+		}
+	}
+
 	// Store the full CPU-side vertex data for GPU updates
 	{
 		auto vtc = mat.ExtractVertices(mesh);
@@ -140,5 +152,40 @@ void Mesh::UpdateGpuVertexBuffer(Graphics& gfx)
 	{
 		pVertices->Update(gfx, *cpuVertexData);
 		gpuDirty = false;
+	}
+}
+
+void Mesh::SetFaceTextureOverride(size_t faceIndex, const std::string& texturePath)
+{
+	faceTextureOverrides[faceIndex] = texturePath;
+}
+
+void Mesh::ClearFaceTextureOverride(size_t faceIndex)
+{
+	faceTextureOverrides.erase(faceIndex);
+}
+
+bool Mesh::HasFaceTextureOverride(size_t faceIndex) const noexcept
+{
+	return faceTextureOverrides.count(faceIndex) > 0;
+}
+
+std::string Mesh::GetDefaultDiffuseTexturePath() const
+{
+	for (const auto& tech : techniques)
+	{
+		if(tech.GetName() != "Phong")
+			continue;
+		for (const auto& step : tech.GetSteps())
+		{
+			for (const auto& bindable : step.GetBindables())
+			{
+				if (auto* pTex = dynamic_cast<Bind::Texture*>(bindable.get()))
+				{
+					if (pTex->GetSlot() == 0) // diffuse
+						return pTex->GetPath();
+				}
+			}
+		}
 	}
 }

@@ -28,6 +28,8 @@ public:
 	void LinkTechniques( Rgph::RenderGraph& );
 	std::optional<PickResult> Pick(DirectX::XMVECTOR& rayOrigin, DirectX::XMVECTOR& rayDir) const noexcept;
 	~Model() noexcept;
+	const std::vector<std::unique_ptr<Mesh>>& GetMeshes() const noexcept { return meshPtrs; }
+	const Node& GetRootNode() const noexcept { return *pRoot; }
 private:
 	static std::unique_ptr<Mesh> ParseMesh( Graphics& gfx,const aiMesh& mesh,const aiMaterial* const* pMaterials,const std::filesystem::path& path,float scale );
 	std::unique_ptr<Node> ParseNode( int& nextId,const aiNode& node,float scale ) noexcept;

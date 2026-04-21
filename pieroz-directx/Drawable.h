@@ -36,6 +36,7 @@ public:
 	UINT GetIndexCount() const noxnd;
 	void LinkTechniques( Rgph::RenderGraph& );
 	std::vector<Technique>& GetTechniques() noexcept { return techniques; }
+	const std::vector<Technique>& GetTechniques() const noexcept { return techniques; }
 	virtual ~Drawable();
 protected:
 	std::shared_ptr<Bind::IndexBuffer> pIndices;

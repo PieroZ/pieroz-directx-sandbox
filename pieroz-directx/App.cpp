@@ -14,6 +14,7 @@
 #include "Mesh.h"
 #include "Texture.h"
 #include "TriangleIndicator.h"
+#include "Node.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -196,6 +197,12 @@ void App::DoFrame( float dt )
 		pTriIndicator->Submit(Chan::main);
 	}
 
+	// Submit textured triangle overyals
+	for (const auto& overlay : texturedOverlays)
+	{
+		overlay->Submit(Chan::main);
+	}
+
 	if (dynamicModel)
 	{
 		dynamicModel->Submit(Chan::main);
@@ -295,7 +302,13 @@ void App::DoFrame( float dt )
 	ShowPickingWindow();
 
 	// UV editor window
-	uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex);
+	uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex, [this](Mesh* pMesh, size_t faceIdx, const std::string& texPath)
+		{
+			RebuildTexturedOverlays();
+		}
+	);
+	//Export window
+	ShowExportWindow();
 
 	// present
 	wnd.Gfx().EndFrame();
@@ -395,6 +408,7 @@ void App::PerformPicking()
 
 		pTriIndicator = std::make_unique<TriangleIndicator>(wnd.Gfx(), wv0, wv1, wv2);
 		pTriIndicator->LinkTechniques(rg);
+		pickedWorldTransform = bestWorldTransform;
 	}
 }
 
@@ -523,6 +537,133 @@ void App::ShowPickingWindow()
 	//}
 	//ImGui::End();
 }
+
+
+void App::RebuildTexturedOverlays()
+{
+	texturedOverlays.clear();
+
+	// Helper to process one model's meshes
+	auto processModel = [this](Model& model)
+		{
+			// We need node traversal to get world transforms. Use a recursive lambda.
+			struct NodeTraverser
+			{
+				App* app;
+				void Traverse(const Node& node, DirectX::FXMMATRIX accum) const
+				{
+					const auto built =
+						DirectX::XMLoadFloat4x4(&node.GetAppliedTransform()) *
+						DirectX::XMLoadFloat4x4(&node.GetBaseTransform()) *
+						accum;
+					for (const auto* pMesh : node.GetMeshPtrs())
+					{
+						const auto& overrides = pMesh->GetFaceTextureOverrides();
+						if(overrides.empty() )
+							continue;
+
+						const auto& indices = pMesh->GetCpuIndices();
+						const auto& positions = pMesh->GetCpuPositions();
+						const auto& uvs = pMesh->GetCpuUVs();
+
+						for (const auto& [faceIdx, texPath] : overrides)
+						{
+							if (faceIdx * 3 + 2 >= indices.size() || uvs.empty())
+								continue;
+							
+							const size_t i0 = indices[faceIdx * 3 + 0];
+							const size_t i1 = indices[faceIdx * 3 + 1];
+							const size_t i2 = indices[faceIdx * 3 + 2];
+
+							DirectX::XMFLOAT3 wv0, wv1, wv2;
+							DirectX::XMStoreFloat3(&wv0, DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&positions[i0]), built));
+							DirectX::XMStoreFloat3(&wv1, DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&positions[i1]), built));
+							DirectX::XMStoreFloat3(&wv2, DirectX::XMVector3TransformCoord(DirectX::XMLoadFloat3(&positions[i2]), built));
+
+							DirectX::XMFLOAT2 uv0 = uvs[i0];
+							DirectX::XMFLOAT2 uv1 = uvs[i1];
+							DirectX::XMFLOAT2 uv2 = uvs[i2];
+
+							auto overlay = std::make_unique<TexturedTriangleOverlay>(
+								app->wnd.Gfx(), wv0, wv1, wv2, uv0, uv1, uv2, texPath
+							);
+							overlay->LinkTechniques(app->rg);
+							app->texturedOverlays.push_back(std::move(overlay));
+						}
+					}
+					for (const auto& child : node.GetChildren())
+					{
+						Traverse(*child, built);
+					}
+				}
+			};
+
+			NodeTraverser traverser{ this };
+			traverser.Traverse(model.GetRootNode(), DirectX::XMMatrixIdentity());
+		};
+
+	processModel(sponza);
+	processModel(gobber);
+	if(dynamicModel)
+		processModel(*dynamicModel);
+}
+
+void App::ShowExportWindow()
+{
+	ImGui::Begin("Export");
+
+	static char exportPath[MAX_PATH] = "exported_model.obj";
+	ImGui::InputText("Output Path", exportPath, MAX_PATH);
+
+	if (ImGui::Button("Browse..."))
+	{
+		std::array<char, MAX_PATH> buf{};
+		strncpy_s(buf.data(), buf.size(), exportPath, _TRUNCATE);
+		OPENFILENAMEA ofn{};
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = nullptr;
+		ofn.lpstrFile = buf.data();
+		ofn.nMaxFile = (DWORD)buf.size();
+		ofn.lpstrFilter = "OBJ Files\0*.obj\0All Files\0*.*\0";
+		ofn.Flags = OFN_OVERWRITEPROMPT;
+		ofn.lpstrDefExt = "obj";
+		if(GetSaveFileNameA(&ofn))
+		{
+			strncpy_s(exportPath, buf.data(), MAX_PATH);
+		}
+	}
+
+	if (dynamicModel)
+	{
+		ImGui::SameLine();
+		if (ImGui::Button("Export Dynamic"))
+		{
+			exportError.clear();
+			if (!ObjExporter::Export(*dynamicModel, exportPath, exportError))
+			{
+				// error stored
+			}
+			else
+			{
+				exportError = "OK: Exported to " + std::string("exportPath");
+			}
+		}
+	}
+	if (!exportError.empty())
+	{
+		if (exportError.substr(0, 3) == "OK:")
+		{
+			ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "%s", exportError.c_str());
+		}
+		else
+		{
+			ImGui::TextColored({ 1.0f, 0.4f, 0.4f, 1.0f }, "Error %s", exportError.c_str());
+		}
+
+	}
+	ImGui::End();
+}
+
 
 App::~App()
 {}

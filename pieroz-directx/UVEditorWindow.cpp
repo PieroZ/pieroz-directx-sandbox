@@ -5,8 +5,27 @@
 #include "Step.h"
 #include "Vertex.h"
 #include <algorithm>
+#include <commdlg.h>
+#include <array>
 
 namespace dx = DirectX;
+
+static std::string OpenTextureFileDialogUV()
+{
+	std::array<char, MAX_PATH> buf{};
+	OPENFILENAMEA ofn{};
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = nullptr;
+	ofn.lpstrFile = buf.data();
+	ofn.nMaxFile = (DWORD)buf.size();
+	ofn.lpstrFilter = "Image Files\0*.png;*.jpg;*.jpeg;*.bmp;*.tga\0All Files\0*.*\0";
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+	if (GetOpenFileNameA(&ofn))
+	{
+		return std::string( buf.data() );
+	}
+	return {};
+}
 
 Bind::Texture* UVEditorWindow::FindDiffuseTexture(Mesh* pMesh) const
 {
@@ -29,7 +48,8 @@ Bind::Texture* UVEditorWindow::FindDiffuseTexture(Mesh* pMesh) const
 	return nullptr;
 }
 
-void UVEditorWindow::Show(Graphics& gfx, Mesh* pMesh, size_t faceIndex)
+void UVEditorWindow::Show(Graphics& gfx, Mesh* pMesh, size_t faceIndex,
+	std::function<void(Mesh*, size_t, const std::string&)> onFaceTextureChanged)
 {
 	ImGui::Begin("UV Editor");
 
@@ -201,7 +221,37 @@ void UVEditorWindow::Show(Graphics& gfx, Mesh* pMesh, size_t faceIndex)
 		pMesh->SetCpuUV(i1, uv1);
 		pMesh->SetCpuUV(i2, uv2);
 		pMesh->UpdateGpuVertexBuffer(gfx);
+	}
 
+	// Per-face texture override section
+	ImGui::Separator();
+	ImGui::TextColored({ 0.4f,1.0f,0.6f,1.0f }, "Face Texture Override");
+
+	if (pMesh->HasFaceTextureOverride(faceIndex))
+	{
+		const auto& overrideTex = pMesh->GetFaceTextureOverrides().at(faceIndex);
+		ImGui::Text("Override %s", overrideTex.c_str());
+		if (ImGui::Button("Remove Override"))
+		{
+			pMesh->ClearFaceTextureOverride(faceIndex);
+			if(onFaceTextureChanged)
+				onFaceTextureChanged(pMesh, faceIndex, "");
+		}
+	}
+	else
+	{
+		ImGui::Text("Using mesh default texture");
+	}
+
+	if (ImGui::Button("Change Face Texture..."))
+	{
+		const auto newPath = OpenTextureFileDialogUV();
+		if (!newPath.empty())
+		{
+			pMesh->SetFaceTextureOverride(faceIndex, newPath);
+			if(onFaceTextureChanged)
+				onFaceTextureChanged(pMesh, faceIndex, newPath);
+		}
 	}
 
 	ImGui::End();

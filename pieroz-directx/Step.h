@@ -25,6 +25,7 @@ public:
 	void Submit( const Drawable& drawable ) const;
 	void Bind( Graphics& gfx ) const noxnd;
 	std::vector<std::shared_ptr<Bind::Bindable>>& GetBindables() noexcept { return bindables; }
+	const std::vector<std::shared_ptr<Bind::Bindable>>& GetBindables() const noexcept { return bindables; }
 	void InitializeParentReferences( const Drawable& parent ) noexcept;
 	void Accept( TechniqueProbe& probe );
 	void Link( Rgph::RenderGraph& rg );
