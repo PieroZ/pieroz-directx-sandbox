@@ -823,5 +823,7 @@
     <FxCompile Include="TexturedOverlay_VS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Unlit_VS.hlsl" />
+    <FxCompile Include="Unlit_PS.hlsl" />
   </ItemGroup>
 </Project>

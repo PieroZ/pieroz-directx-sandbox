@@ -197,16 +197,16 @@ void App::DoFrame( float dt )
 		pTriIndicator->Submit(Chan::main);
 	}
 
+	if (dynamicModel)
+	{
+		dynamicModel->Submit(Chan::main);
+		//dynamicModel->Submit(Chan::shadow);
+	}
+
 	// Submit textured triangle overyals
 	for (const auto& overlay : texturedOverlays)
 	{
 		overlay->Submit(Chan::main);
-	}
-
-	if (dynamicModel)
-	{
-		dynamicModel->Submit(Chan::main);
-		dynamicModel->Submit(Chan::shadow);
 	}
 
 

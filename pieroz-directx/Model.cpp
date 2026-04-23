@@ -11,7 +11,7 @@
 
 namespace dx = DirectX;
 
-Model::Model( Graphics& gfx,const std::string& pathString,const float scale )
+Model::Model( Graphics& gfx,const std::string& pathString,const float scale, bool unlit )
 {
 	Assimp::Importer imp;
 	const auto pScene = imp.ReadFile( pathString.c_str(),
@@ -32,13 +32,13 @@ Model::Model( Graphics& gfx,const std::string& pathString,const float scale )
 	materials.reserve( pScene->mNumMaterials );
 	for( size_t i = 0; i < pScene->mNumMaterials; i++ )
 	{
-		materials.emplace_back( gfx,*pScene->mMaterials[i],pathString );
+		materials.emplace_back( gfx,*pScene->mMaterials[i],pathString, unlit);
 	}
 
 	for( size_t i = 0; i < pScene->mNumMeshes; i++ )
 	{
 		const auto& mesh = *pScene->mMeshes[i];
-		meshPtrs.push_back( std::make_unique<Mesh>( gfx,materials[mesh.mMaterialIndex],mesh,scale ) );
+		meshPtrs.push_back( std::make_unique<Mesh>( gfx,materials[mesh.mMaterialIndex],mesh,scale) );
 	}
 
 	int nextId = 0;

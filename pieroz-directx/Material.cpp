@@ -7,7 +7,7 @@
 #include <filesystem>
 #include "Channels.h"
 
-Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesystem::path& path ) noxnd
+Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesystem::path& path, bool unlit ) noxnd
 	:
 	modelPath( path.string() )
 {
@@ -88,10 +88,16 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 		// common (post)
 		{
 			step.AddBindable( std::make_shared<TransformCbuf>( gfx,0u ) );
-			auto pvs = VertexShader::Resolve( gfx,shaderCode + "_VS.cso" );
+			// Use unlit shaders for flat texture rendering (no lighting)
+			const std::string vsName = (unlit && hasTexture) ? "Unlit_VS.cso" : (shaderCode + "_VS.cso");
+			const std::string psName = (unlit && hasTexture) ? "Unlit_PS.cso" : (shaderCode + "_PS.cso");
+
+
+			auto pvs = VertexShader::Resolve(gfx, vsName);
+
 			step.AddBindable( InputLayout::Resolve( gfx,vtxLayout,*pvs ) );
 			step.AddBindable( std::move( pvs ) );
-			step.AddBindable( PixelShader::Resolve( gfx,shaderCode + "_PS.cso" ) );
+			step.AddBindable( PixelShader::Resolve( gfx, psName) );
 			if( hasTexture )
 			{
 				step.AddBindable( Bind::Sampler::Resolve( gfx ) );
@@ -163,7 +169,8 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 		}
 		techniques.push_back( std::move( outline ) );
 	}
-	// shadow map technique
+	// shadow map technique (skip for unlit models)
+	if(!unlit)
 	{
 		Technique map{ "ShadowMap",Chan::shadow,true };
 		{
