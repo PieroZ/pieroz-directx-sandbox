@@ -28,7 +28,25 @@ int CALLBACK WinMain(
 {
 	try
 	{
-		return App{ lpCmdLine }.Go();
+		// Scene selection dialog at startup
+		SceneType scene = SceneType::Default;
+		const int result = MessageBoxA(
+			nullptr,
+			"Choose scene type:\n\n"
+			"YES = Default (Sponza + lighting + shadows)\n"
+			"NO = Tile map editor (flat textured grid, unlit)",
+			"Scene Selection", MB_ICONQUESTION | MB_YESNO);
+
+		if (result == IDYES)
+		{
+			scene = SceneType::Default;
+		}
+		else if (result == IDNO)
+		{
+			scene = SceneType::TileMap;
+		}
+
+		return App{ lpCmdLine, scene }.Go();
 	}
 	catch( const ChiliException& e )
 	{

@@ -327,6 +327,18 @@
     <ClCompile Include="ObjExporter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="UnlitRenderGraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Tile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TileMapDef.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TileMapScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowsMessageMap.h">
@@ -689,6 +701,21 @@
     <ClInclude Include="ObjExporter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="UnlitRenderGraph.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UnlitPass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TileMapScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Tile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TileMapDef.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="pieroz-directx.rc">
@@ -737,6 +764,7 @@
     <None Include="PShadow.hlsli">
       <Filter>Shader\Common</Filter>
     </None>
+    <None Include="sample_tilemap.json" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PhongDifMskSpcNrm_PS.hlsl">
@@ -823,7 +851,11 @@
     <FxCompile Include="TexturedOverlay_VS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Unlit_VS.hlsl" />
-    <FxCompile Include="Unlit_PS.hlsl" />
+    <FxCompile Include="Unlit_VS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Unlit_PS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

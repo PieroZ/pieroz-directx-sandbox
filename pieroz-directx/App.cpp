@@ -15,6 +15,7 @@
 #include "Texture.h"
 #include "TriangleIndicator.h"
 #include "Node.h"
+#include "TileMapDef.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -55,37 +56,58 @@ static std::string OpenTextureFileDialog()
 	return {};
 }
 
-App::App( const std::string& commandLine )
+App::App( const std::string& commandLine, SceneType scene )
 	:
 	commandLine( commandLine ),
-	wnd( 1920,1080,"The Donkey Fart Box" ),
-	scriptCommander( TokenizeQuoted( commandLine ) ),
-	light( wnd.Gfx(),{ 10.0f,5.0f,0.0f } )
+	sceneType (scene),
+	wnd( 1920,1080,"UC NPRIM Editor" ),
+	scriptCommander( TokenizeQuoted( commandLine ) )
 {
-	cameras.AddCamera( std::make_unique<Camera>( wnd.Gfx(),"A",dx::XMFLOAT3{ -13.5f,6.0f,3.5f },0.0f,PI / 2.0f ) );
-	cameras.AddCamera( std::make_unique<Camera>( wnd.Gfx(),"B",dx::XMFLOAT3{ -13.5f,28.8f,-6.4f },PI / 180.0f * 13.0f,PI / 180.0f * 61.0f ) );
-	cameras.AddCamera( light.ShareCamera() );
+	if (sceneType == SceneType::Default)
+	{
+		// -- Default scene: Sponza + lighting + shadows ---
+		pBlurRg = std::make_unique<Rgph::BlurOutlineRenderGraph>(wnd.Gfx());
+		pLight = std::make_unique<PointLight>(wnd.Gfx(), dx::XMFLOAT3{ 10.0f, 5.0f, 0.0f });
 
-	cube.SetPos( { 10.0f,5.0f,6.0f } );
-	cube2.SetPos( { 10.0f,5.0f,14.0f } );
-	//nano.SetRootTransform(
-	//	dx::XMMatrixRotationY( PI / 2.f ) *
-	//	dx::XMMatrixTranslation( 27.f,-0.56f,1.7f )
-	//);
-	gobber.SetRootTransform(
-		dx::XMMatrixRotationY( -PI / 2.f ) *
-		dx::XMMatrixTranslation( -8.f,10.f,0.f )
-	);
-	
-	cube.LinkTechniques( rg );
-	cube2.LinkTechniques( rg );
-	light.LinkTechniques( rg );
-	sponza.LinkTechniques( rg );
-	gobber.LinkTechniques( rg );
-	//nano.LinkTechniques( rg );
-	cameras.LinkTechniques( rg );
+		cameras.AddCamera(std::make_unique<Camera>(wnd.Gfx(), "A", dx::XMFLOAT3{ -13.5f, 6.0f, 3.5f }, 0.0f, PI / 2.0f));
+		cameras.AddCamera(std::make_unique<Camera>(wnd.Gfx(), "B", dx::XMFLOAT3{ -13.5f, 28.0f, -6.4f }, PI / 180.0f, PI / 180.0f * 61.0f));
+		cameras.AddCamera(pLight->ShareCamera());
 
-	rg.BindShadowCamera( *light.ShareCamera() );
+		pCube = std::make_unique<TestCube>(wnd.Gfx(), 4.0f);
+		pCube2 = std::make_unique<TestCube>(wnd.Gfx(), 4.0f);
+		pSponza = std::make_unique<Model>(wnd.Gfx(), "Models\\sponza\\sponza.obj",  1.0f/ 20.f);
+		pGobber = std::make_unique<Model>(wnd.Gfx(), "Models\\gobber\\GoblinX.obj",  4.0f);
+
+		pCube->SetPos({ 10.0f, 5.0f, 6.0f });
+		pCube2->SetPos({ 10.0f, 5.0f, 14.0f });
+		pGobber->SetRootTransform(
+			dx::XMMatrixRotationY(-PI / 2.f) *
+			dx::XMMatrixTranslation(-8.f, 10.f, 0.f)
+		);
+
+		pCube->LinkTechniques(*pBlurRg);
+		pCube2->LinkTechniques(*pBlurRg);
+		pLight->LinkTechniques(*pBlurRg);
+		pSponza->LinkTechniques(*pBlurRg);
+		pGobber->LinkTechniques(*pBlurRg);
+		cameras.LinkTechniques(*pBlurRg);
+
+		pBlurRg->BindMainCamera(*pLight->ShareCamera());
+	}
+	else if (sceneType == SceneType::TileMap)
+	{
+		// -- Tile map scene: flat grid , unlit, no shadows ---
+		pUnlitRg = std::make_unique<Rgph::UnlitRenderGraph>(wnd.Gfx());
+
+		cameras.AddCamera(std::make_unique<Camera>(wnd.Gfx(), "TileCamera", 
+			dx::XMFLOAT3{ 5.0f, 10.0f, -5.0f }, PI / 4.0f, PI / 4.0f ));
+
+		// Create a default 8x8 tile grid with a placerholder texture
+		auto def = TileMapDef::MakeGrid(8, 8, 2.0f, "Images\\brickwall.jpg");
+		pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
+		pTileScene->LinkTechniques(*pUnlitRg);
+		cameras.LinkTechniques(*pUnlitRg);
+	}
 }
 
 void App::HandleInput( float dt )
@@ -177,21 +199,42 @@ void App::HandleInput( float dt )
 	}
 }
 
-void App::DoFrame( float dt )
+void App::DoFrame(float dt)
 {
-	wnd.Gfx().BeginFrame( 0.07f,0.0f,0.12f );
-	light.Bind( wnd.Gfx(),cameras->GetMatrix() );
-	rg.BindMainCamera( cameras.GetActiveCamera() );
+	wnd.Gfx().BeginFrame(0.07f, 0.0f, 0.12f);
+
+	if (sceneType == SceneType::Default)
+	{
+		DoFrameDefault(dt);
+	}
+	else if (sceneType == SceneType::TileMap)
+	{
+		DoFrameTileMap(dt);
+	}
+
+	// present
+	wnd.Gfx().EndFrame();
+	GetRenderGraph().Reset();
+}
+
+Rgph::RenderGraph& App::GetRenderGraph() noexcept
+{
+	if (pBlurRg) return *pBlurRg;
+	return *pUnlitRg;
+}
+
+void App::DoFrameDefault(float dt)
+{
+	pLight->Bind(wnd.Gfx(), cameras->GetMatrix());
+	pBlurRg->BindMainCamera(cameras.GetActiveCamera());
 		
-	light.Submit( Chan::main );
-	cube.Submit( Chan::main );
-	sponza.Submit( Chan::main );
-	cube2.Submit( Chan::main );
-	gobber.Submit( Chan::main );
-	//nano.Submit( Chan::main );
+	pLight->Submit( Chan::main );
+	pCube->Submit( Chan::main );
+	pSponza->Submit( Chan::main );
+	pCube2->Submit( Chan::main );
+	pGobber->Submit( Chan::main );
 	cameras.Submit( Chan::main );
 
-	// Submit single-triangle highlight indicator
 	if (pTriIndicator)
 	{
 		pTriIndicator->Submit(Chan::main);
@@ -200,28 +243,26 @@ void App::DoFrame( float dt )
 	if (dynamicModel)
 	{
 		dynamicModel->Submit(Chan::main);
-		//dynamicModel->Submit(Chan::shadow);
 	}
 
-	// Submit textured triangle overyals
 	for (const auto& overlay : texturedOverlays)
 	{
 		overlay->Submit(Chan::main);
 	}
 
 
-	sponza.Submit( Chan::shadow );
-	cube.Submit( Chan::shadow );
-	sponza.Submit( Chan::shadow );
-	cube2.Submit( Chan::shadow );
-	gobber.Submit( Chan::shadow );
-	//nano.Submit( Chan::shadow );
+	pSponza->Submit( Chan::shadow );
+	pCube->Submit( Chan::shadow );
+	pSponza->Submit( Chan::shadow );
+	pCube2->Submit( Chan::shadow );
+	pGobber->Submit( Chan::shadow );
+	//pNano->Submit( Chan::shadow );
 
-	rg.Execute( wnd.Gfx() );
+	pBlurRg->Execute( wnd.Gfx() );
 
 	if( savingDepth )
 	{
-		rg.DumpShadowMap( wnd.Gfx(),"shadow.png" );
+		pBlurRg->DumpShadowMap( wnd.Gfx(),"shadow.png" );
 		savingDepth = false;
 	}
 
@@ -229,30 +270,18 @@ void App::DoFrame( float dt )
 
 	if (showImguiDebugWindows)
 	{
-
-		// imgui windows
 		static MP sponzeProbe{ "Sponza" };
 		static MP gobberProbe{ "Gobber" };
 		static MP userMeshProbe{ "UserMesh" };
-		sponzeProbe.SpawnWindow(sponza);
-		gobberProbe.SpawnWindow(gobber);
+		sponzeProbe.SpawnWindow(*pSponza);
+		gobberProbe.SpawnWindow(*pGobber);
 		//nanoProbe.SpawnWindow(nano);
 
 		if (dynamicModel)
 		{
 			userMeshProbe.SpawnWindow(*dynamicModel);
 		}
-
-
-
-
-		//cameras.SpawnWindow(wnd.Gfx());
-		light.SpawnControlWindow();
-		//ShowImguiDemoWindow();
-		//cube.SpawnControlWindow(wnd.Gfx(), "Cube 1");
-		//cube2.SpawnControlWindow(wnd.Gfx(), "Cube 2");
-
-		//rg.RenderWindows(wnd.Gfx());
+		pLight->SpawnControlWindow();
 	}
 
 	{
@@ -266,7 +295,6 @@ void App::DoFrame( float dt )
 			const auto sel = OpenModelFileDialog();
 			if (!sel.empty())
 			{
-				// skopiuj ścieżkę do inputa
 				strncpy_s(pathBuf, sel.c_str(), MAX_PATH);
 			}
 		}
@@ -283,7 +311,7 @@ void App::DoFrame( float dt )
 					dx::XMMatrixTranslation(27.f, -0.56f, 1.7f)
 				);
 
-				dynamicModel->LinkTechniques(rg);
+				dynamicModel->LinkTechniques(*pBlurRg);
 			}
 			catch (const std::exception& e)
 			{
@@ -298,21 +326,107 @@ void App::DoFrame( float dt )
 		ImGui::End();
 	}
 
-	// Picking/selection window
 	ShowPickingWindow();
 
-	// UV editor window
 	uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex, [this](Mesh* pMesh, size_t faceIdx, const std::string& texPath)
 		{
 			RebuildTexturedOverlays();
 		}
 	);
-	//Export window
 	ShowExportWindow();
+}
 
-	// present
-	wnd.Gfx().EndFrame();
-	rg.Reset();
+void App::DoFrameTileMap(float dt)
+{
+	pUnlitRg->BindMainCamera(cameras.GetActiveCamera());
+
+	pTileScene->Submit(Chan::main);
+	cameras.Submit(Chan::main);
+
+	pUnlitRg->Execute(wnd.Gfx());
+
+	ShowTileMapWindow();
+}
+
+void App::ShowTileMapWindow()
+{
+	ImGui::Begin("Tile Map Scene");
+
+	ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Tile Grid: %zu tiles",
+		pTileScene->GetMapDef().tiles.size());
+
+	ImGui::Separator();
+	ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Load Tile Map from JSON");
+
+	static char tileMapPath[MAX_PATH] = "";
+	ImGui::InputText("Map File", tileMapPath, MAX_PATH);
+	if (ImGui::Button("Browse Map..."))
+	{
+		std::array<char, MAX_PATH> buf{};
+		OPENFILENAMEA ofn{};
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = nullptr;
+		ofn.lpstrFile = buf.data();
+		ofn.nMaxFile = (DWORD)buf.size();
+		ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
+		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+		if (GetOpenFileNameA(&ofn))
+		{
+			strncpy_s(tileMapPath, buf.data(), MAX_PATH);
+		}
+	}
+	ImGui::SameLine();
+	if(ImGui::Button("Load Map"))
+	{
+		try
+		{
+			auto def = TileMapDef::LoadFromJSON(tileMapPath);
+			pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
+			pTileScene->LinkTechniques(*pUnlitRg);
+		}
+		catch (const std::exception& e)
+		{
+			tileModelLoadError = std::string("Map load error: ") + e.what();
+		}
+	}
+
+	ImGui::Separator();
+	ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Load 3D Object (Unlit)");
+
+	static char modelPath[MAX_PATH] = ""; 
+	ImGui::InputText("Model Path", modelPath, MAX_PATH);
+	ImGui::InputFloat("Scale", &tileModelScale, 0.1f, 1.0f, "%.3f");
+
+	if (ImGui::Button("Browse Model..."))
+	{
+		const auto sel = OpenModelFileDialog();
+		if(!sel.empty())
+		{
+			strncpy_s(modelPath, sel.c_str(), MAX_PATH);
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Load 3D Object"))
+	{
+		try
+		{
+			pTileScene->LoadDynamicModel(wnd.Gfx(), std::string(modelPath), tileModelScale);
+			pTileScene->SetDynamicModelTransform(
+				dx::XMMatrixTranslation(8.f, 0.f, 8.f)
+			);
+			pTileScene->LinkTechniques(*pUnlitRg);
+			tileModelLoadError.clear();
+		}
+		catch (const std::exception& e)
+		{
+			tileModelLoadError = e.what();
+		}
+	}
+
+	if (!tileModelLoadError.empty())
+	{
+		ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", tileModelLoadError.c_str());
+	}
 }
 
 void App::ShowImguiDemoWindow()
@@ -385,8 +499,8 @@ void App::PerformPicking()
 		}
 	};
 
-	testModel(sponza);
-	testModel(gobber);
+	testModel(*pSponza);
+	testModel(*pGobber);
 	if(dynamicModel)
 	{
 		testModel(*dynamicModel);
@@ -407,7 +521,7 @@ void App::PerformPicking()
 
 
 		pTriIndicator = std::make_unique<TriangleIndicator>(wnd.Gfx(), wv0, wv1, wv2);
-		pTriIndicator->LinkTechniques(rg);
+		pTriIndicator->LinkTechniques(GetRenderGraph());
 		pickedWorldTransform = bestWorldTransform;
 	}
 }
@@ -587,7 +701,7 @@ void App::RebuildTexturedOverlays()
 							auto overlay = std::make_unique<TexturedTriangleOverlay>(
 								app->wnd.Gfx(), wv0, wv1, wv2, uv0, uv1, uv2, texPath
 							);
-							overlay->LinkTechniques(app->rg);
+							overlay->LinkTechniques(app->GetRenderGraph());
 							app->texturedOverlays.push_back(std::move(overlay));
 						}
 					}
@@ -602,8 +716,8 @@ void App::RebuildTexturedOverlays()
 			traverser.Traverse(model.GetRootNode(), DirectX::XMMatrixIdentity());
 		};
 
-	processModel(sponza);
-	processModel(gobber);
+	processModel(*pSponza);
+	processModel(*pGobber);
 	if(dynamicModel)
 		processModel(*dynamicModel);
 }

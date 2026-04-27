@@ -1,0 +1,23 @@
+{
+  "tileSize": 2.0,
+  "originX": 0.0,
+  "originZ": 0.0,
+  "tiles": [
+    { "col":  0, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  1, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  2, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  3, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  0, "row":  1, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  1, "row":  1, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  2, "row":  1, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  3, "row":  1, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  0, "row":  2, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  1, "row":  2, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  2, "row":  2, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  3, "row":  2, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  0, "row":  3, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  1, "row":  3, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  2, "row":  3, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  3, "row":  3, "height": 0.0, "texture":  "Images\\brickwall.jpg" }
+  ]
+}
