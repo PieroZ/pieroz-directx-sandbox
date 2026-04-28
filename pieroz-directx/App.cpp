@@ -343,9 +343,31 @@ void App::DoFrameTileMap(float dt)
 	pTileScene->Submit(Chan::main);
 	cameras.Submit(Chan::main);
 
+
+	// Submit triangle indicator if picking is active
+	if (pTriIndicator)
+	{
+		pTriIndicator->Submit(Chan::main);
+	}
+
+	// Submit textured overlays for picked face
+	for (const auto& overlay : texturedOverlays)
+	{
+		overlay->Submit(Chan::main);
+	}
+
 	pUnlitRg->Execute(wnd.Gfx());
 
 	ShowTileMapWindow();
+	ShowPickingWindow();
+
+	uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex, [this](Mesh* pMesh, size_t faceIdx, const std::string& texPath)
+		{
+			RebuildTexturedOverlays();
+		}
+	);
+
+	ShowExportWindow();
 }
 
 void App::ShowTileMapWindow()
@@ -414,7 +436,9 @@ void App::ShowTileMapWindow()
 			pTileScene->SetDynamicModelTransform(
 				dx::XMMatrixTranslation(8.f, 0.f, 8.f)
 			);
-			pTileScene->LinkTechniques(*pUnlitRg);
+			//pTileScene->LinkTechniques(*pUnlitRg);
+			//Link only the newly loaded model, not the entire scene
+			pTileScene->GetDynamicModel()->LinkTechniques(*pUnlitRg);
 			tileModelLoadError.clear();
 		}
 		catch (const std::exception& e)
@@ -427,6 +451,8 @@ void App::ShowTileMapWindow()
 	{
 		ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", tileModelLoadError.c_str());
 	}
+
+	ImGui::End();
 }
 
 void App::ShowImguiDemoWindow()
@@ -499,11 +525,15 @@ void App::PerformPicking()
 		}
 	};
 
-	testModel(*pSponza);
-	testModel(*pGobber);
+	if(pSponza) testModel(*pSponza);
+	if(pGobber) testModel(*pGobber);
 	if(dynamicModel)
 	{
 		testModel(*dynamicModel);
+	}
+	if (pTileScene && pTileScene->GetDynamicModel())
+	{
+		testModel(*pTileScene->GetDynamicModel());
 	}
 
 	// Build single-triangle indicator for the picked face
@@ -716,10 +746,14 @@ void App::RebuildTexturedOverlays()
 			traverser.Traverse(model.GetRootNode(), DirectX::XMMatrixIdentity());
 		};
 
-	processModel(*pSponza);
-	processModel(*pGobber);
-	if(dynamicModel)
-		processModel(*dynamicModel);
+	if(pSponza) processModel(*pSponza);
+	if(pGobber) processModel(*pGobber);
+	if(dynamicModel) processModel(*dynamicModel);
+
+	if (pTileScene && pTileScene->HasDynamicModel())
+	{
+		processModel(*pTileScene->GetDynamicModel());
+	}
 }
 
 void App::ShowExportWindow()
@@ -747,13 +781,21 @@ void App::ShowExportWindow()
 		}
 	}
 
+
+	Model* pExportModel = nullptr;
 	if (dynamicModel)
+		pExportModel = dynamicModel.get();
+	else if (pTileScene && pTileScene->HasDynamicModel())
+		pExportModel = pTileScene->GetDynamicModel();
+
+	if (pExportModel)
 	{
+
 		ImGui::SameLine();
 		if (ImGui::Button("Export Dynamic"))
 		{
 			exportError.clear();
-			if (!ObjExporter::Export(*dynamicModel, exportPath, exportError))
+			if (!ObjExporter::Export(*pExportModel, exportPath, exportError))
 			{
 				// error stored
 			}

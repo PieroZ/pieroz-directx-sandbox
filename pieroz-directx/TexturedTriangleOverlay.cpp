@@ -48,8 +48,8 @@ TexturedTriangleOverlay::TexturedTriangleOverlay(
 
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
 
-		// Two-side solid fill - let DepthFirst (LESS_EQUAL_ handle overlay
-		step.AddBindable(Rasterizer::Resolve(gfx, true, false));
+		// Two-side solid fill with depth bias to prevent z-fighting with original geometry
+		step.AddBindable(Rasterizer::Resolve(gfx, true, false, -100, -1.0f));
 		step.AddBindable(Stencil::Resolve(gfx, Stencil::Mode::DepthFirst));
 		// No blending - fully opaque textured overlay
 		step.AddBindable(Blender::Resolve(gfx, false));

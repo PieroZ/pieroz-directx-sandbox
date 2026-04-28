@@ -95,17 +95,36 @@ void UVEditorWindow::Show(Graphics& gfx, Mesh* pMesh, size_t faceIndex,
 
 	ImGui::PopItemWidth();
 
-	// Find diffuse texture
+	// Find diffuse texture (default from Phong technique)
 	auto* pDiffuseTex = FindDiffuseTexture(pMesh);
+
+	// If the current face has a texture override, show that instead
+	std::shared_ptr<Bind::Texture> pOverrideTex;
+	ID3D11ShaderResourceView* pPreviewSRV = nullptr;
+	std::string previewTexPath;
+
+	if(pMesh->HasFaceTextureOverride(faceIndex))
+	{
+		const auto& overridePath = pMesh->GetFaceTextureOverrides().at(faceIndex);
+		pOverrideTex = Bind::Texture::Resolve(gfx, overridePath, 0u);
+		pPreviewSRV = pOverrideTex->GetShaderResourceView();
+		previewTexPath = overridePath;
+	}
+	else if (pDiffuseTex)
+	{
+		pPreviewSRV = pDiffuseTex->GetShaderResourceView();
+		previewTexPath = pDiffuseTex->GetPath();
+	}
+
 
 	// Texture image + UV triangle overlay
 	const float canvasSize = 400.0f;
 	ImGui::Separator();
 	ImGui::TextColored({ 0.4f,1.0f,0.6f,1.0f }, "Texture Preview");
 
-	if (pDiffuseTex && pDiffuseTex->GetShaderResourceView())
+	if (pPreviewSRV)
 	{
-		ImGui::Text(" Texture %s)", pDiffuseTex->GetPath().c_str());
+		ImGui::Text(" Texture %s)", previewTexPath.c_str());
 	}
 	else
 	{
@@ -117,10 +136,10 @@ void UVEditorWindow::Show(Graphics& gfx, Mesh* pMesh, size_t faceIndex,
 	const ImVec2 canvasEnd = ImVec2(canvasPos.x + canvasSize, canvasPos.y + canvasSize);
 
 	// Draw texture image as background
-	if (pDiffuseTex && pDiffuseTex->GetShaderResourceView())
+	if (pPreviewSRV)
 	{
 		ImGui::Image(
-			(ImTextureID)pDiffuseTex->GetShaderResourceView(),
+			(ImTextureID)pPreviewSRV,
 			ImVec2(canvasSize, canvasSize),
 			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f)
 		);

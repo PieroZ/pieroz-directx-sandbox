@@ -32,6 +32,14 @@ namespace Rgph
 			AppendPass(std::move(pass));
 		}
 
+		// Wireframe overlay pass
+		{
+			auto pass = std::make_unique<WireframePass>(gfx, "wireframe");
+			pass->SetSinkLinkage("renderTarget", "lambertian.renderTarget");
+			pass->SetSinkLinkage("depthStencil", "lambertian.depthStencil");
+			AppendPass(std::move(pass));
+		}
+
 		SetSinkTarget("backbuffer", "wireframe.renderTarget");
 		Finalize();
 	}

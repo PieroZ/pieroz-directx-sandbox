@@ -4,10 +4,12 @@
 
 namespace Bind
 {
-	Rasterizer::Rasterizer( Graphics& gfx,bool twoSided, bool wireframe )
+	Rasterizer::Rasterizer( Graphics& gfx,bool twoSided, bool wireframe, int depthBias, float slopeScaledDepthBias)
 		:
 		twoSided( twoSided ),
-		wireframe( wireframe )
+		wireframe( wireframe ),
+		depthBias( depthBias ),
+		slopeScaledDepthBias( slopeScaledDepthBias )
 	{
 		INFOMAN( gfx );
 
@@ -21,6 +23,11 @@ namespace Bind
 			rasterDesc.SlopeScaledDepthBias = -1.0f;
 			rasterDesc.DepthBiasClamp = -0.001f;
 		}
+		if (depthBias != 0 || slopeScaledDepthBias != 0.0f)
+		{
+			rasterDesc.DepthBias = depthBias;
+			rasterDesc.SlopeScaledDepthBias = slopeScaledDepthBias;
+		}
 
 		GFX_THROW_INFO( GetDevice( gfx )->CreateRasterizerState( &rasterDesc,&pRasterizer ) );
 	}
@@ -31,17 +38,24 @@ namespace Bind
 		GFX_THROW_INFO_ONLY( GetContext( gfx )->RSSetState( pRasterizer.Get() ) );
 	}
 	
-	std::shared_ptr<Rasterizer> Rasterizer::Resolve( Graphics& gfx,bool twoSided, bool wireframe )
+	std::shared_ptr<Rasterizer> Rasterizer::Resolve( Graphics& gfx,bool twoSided, bool wireframe, int depthBias, float slopeScaledDepthBias )
 	{
-		return Codex::Resolve<Rasterizer>( gfx,twoSided, wireframe );
+		return Codex::Resolve<Rasterizer>( gfx,twoSided, wireframe, depthBias, slopeScaledDepthBias );
 	}
-	std::string Rasterizer::GenerateUID( bool twoSided, bool wireframe )
+	std::string Rasterizer::GenerateUID( bool twoSided, bool wireframe, int depthBias, float slopeScaledDepthBias)
 	{
 		using namespace std::string_literals;
-		return typeid(Rasterizer).name() + "#"s + (twoSided ? "2s" : "1s") + (wireframe ? "wf" : "");
+
+		auto uid = typeid(Rasterizer).name() + "#"s + (twoSided ? "2s" : "1s") + (wireframe ? "wf" : "");
+		if (depthBias != 0 || slopeScaledDepthBias != 0.0f)
+		{
+			uid += "#db"s + std::to_string(depthBias) + "#sdb"s + std::to_string(slopeScaledDepthBias);
+		}
+
+		return uid;
 	}
 	std::string Rasterizer::GetUID() const noexcept
 	{
-		return GenerateUID( twoSided, wireframe );
+		return GenerateUID( twoSided, wireframe, depthBias, slopeScaledDepthBias );
 	}
 }

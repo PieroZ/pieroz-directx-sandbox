@@ -132,7 +132,8 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 		phong.AddStep( std::move( step ) );
 		techniques.push_back( std::move( phong ) );
 	}
-	// outline technique
+	// outline technique (skip for unlit models - no outline passes in unlit render graph)
+	if(!unlit)
 	{
 		Technique outline{ "Outline",Chan::main,false };
 		{
