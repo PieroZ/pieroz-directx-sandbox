@@ -263,3 +263,7 @@ __pycache__/
 *.pyc
 *.cso
 /hw3d/imgui.ini
+
+# Images
+*.png
+*.tga

@@ -347,7 +347,10 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="cnpy.h" />
     <ClInclude Include="CubeTexture.h" />
+    <ClInclude Include="iamLoader.h" />
+    <ClInclude Include="iamToJson.h" />
     <ClInclude Include="ObjExporter.h" />
+    <ClInclude Include="Pap.h" />
     <ClInclude Include="Picking.h" />
     <ClInclude Include="ShadowCameraCBuf.h" />
     <ClInclude Include="CameraContainer.h" />
@@ -408,6 +411,7 @@
     <ClInclude Include="TestModelProbe.h" />
     <ClInclude Include="ScaleOutlineRenderGraph.h" />
     <ClInclude Include="TexturedTriangleOverlay.h" />
+    <ClInclude Include="TextureIdToFilenameHelper.h" />
     <ClInclude Include="TexturePreprocessor.h" />
     <ClInclude Include="TestCube.h" />
     <ClInclude Include="Drawable.h" />

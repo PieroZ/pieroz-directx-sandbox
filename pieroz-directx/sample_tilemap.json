@@ -3,7 +3,7 @@
   "originX": 0.0,
   "originZ": 0.0,
   "tiles": [
-    { "col":  0, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
+    { "col":  0, "row":  0, "height": 0.0, "texture":  "Images\\kappa50.png" },
     { "col":  1, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
     { "col":  2, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },
     { "col":  3, "row":  0, "height": 0.0, "texture":  "Images\\brickwall.jpg" },

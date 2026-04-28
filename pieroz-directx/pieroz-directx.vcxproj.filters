@@ -716,6 +716,18 @@
     <ClInclude Include="TileMapDef.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Pap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="iamLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureIdToFilenameHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="iamToJson.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="pieroz-directx.rc">

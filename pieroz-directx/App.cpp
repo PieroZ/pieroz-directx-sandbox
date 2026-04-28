@@ -16,6 +16,8 @@
 #include "TriangleIndicator.h"
 #include "Node.h"
 #include "TileMapDef.h"
+#include "iamLoader.h"
+#include "iamToJson.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -108,6 +110,14 @@ App::App( const std::string& commandLine, SceneType scene )
 		pTileScene->LinkTechniques(*pUnlitRg);
 		cameras.LinkTechniques(*pUnlitRg);
 	}
+
+	std::string testMapPath = "UC-data\\maps\\bball2.iam";
+	std::vector<PAP_Hi> tiles = LoadIamMap(testMapPath);
+
+
+	auto mapjson = BuildMapJson(tiles);
+
+	SaveIamToJson(mapjson, "bball2_map.json");
 }
 
 void App::HandleInput( float dt )
