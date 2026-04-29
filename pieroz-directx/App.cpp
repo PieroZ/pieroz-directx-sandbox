@@ -350,7 +350,7 @@ void App::DoFrameTileMap(float dt)
 {
 	pUnlitRg->BindMainCamera(cameras.GetActiveCamera());
 
-	pTileScene->Submit(Chan::main);
+	pTileScene->Submit(Chan::main, wnd.Gfx());
 	cameras.Submit(Chan::main);
 
 

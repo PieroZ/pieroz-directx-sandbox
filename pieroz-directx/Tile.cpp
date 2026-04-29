@@ -32,13 +32,12 @@ Tile::Tile( Graphics& gfx, float size, float worldX, float worldY, float worldZ,
 
 	std::vector<unsigned short> indices = { 0,1,2, 0,2,3 };
 
-	// Unique tag per tile positino so buffers aren't shared incorrectly
-	static int uid = 0;
-	const std::string tag = "$tile_" + std::to_string(uid++);
+	// All tiles with the same size share one VB/IB (geometry is identical, position comes from transform)
+	const std::string tag = "$tile_quad_" + std::to_string(size);
 
-	pVertices = std::make_shared<VertexBuffer>(gfx, tag, vbuf);
-	pIndices = std::make_shared<IndexBuffer>(gfx, tag, indices);
-	pTopology = std::make_shared<Topology>(gfx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pVertices = VertexBuffer::Resolve(gfx, tag, vbuf);
+	pIndices = IndexBuffer::Resolve(gfx, tag, indices);
+	pTopology = Topology::Resolve(gfx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Unlit textured technique - render flat texture with no lighting
 	{
@@ -50,7 +49,7 @@ Tile::Tile( Graphics& gfx, float size, float worldX, float worldY, float worldZ,
 		step.AddBindable(std::move(pvs));
 		step.AddBindable(PixelShader::Resolve(gfx, "Unlit_PS.cso"));
 
-		step.AddBindable(std::make_shared<Bind::Texture>(gfx, texturePath, 0u));
+		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
 		step.AddBindable(Sampler::Resolve(gfx));
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
 		step.AddBindable(Rasterizer::Resolve(gfx, false)); // no backface culling

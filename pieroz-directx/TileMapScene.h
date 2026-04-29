@@ -2,11 +2,12 @@
 #include "TileMapDef.h"
 #include "Tile.h"
 #include "Model.h"
+#include "Graphics.h"
 #include <vector>
 #include <memory>
 #include <string>
+#include <DirectXMath.h>
 
-class Graphics;
 namespace Rgph { class RenderGraph; }
 
 // Manages a tile-based scene: a grid of textured tiles plus optional dynamic 3D objects.
@@ -27,8 +28,8 @@ public:
 	// Link all drawables to the render graph
 	void LinkTechniques(Rgph::RenderGraph& rg);
 
-	// Submit all drawables for rendering
-	void Submit(size_t channels) const;
+	// Submit only visible drawables for rendering (frustrum culling)
+	void Submit(size_t channels, Graphics& gfx) const;
 
 	// Access for ImGui inspection
 	const TileMapDef& GetMapDef() const noexcept { return currentDef; }
@@ -36,8 +37,12 @@ public:
 
 private: 
 	void BuildTiles(Graphics& gfx);
+	static void ExtractFrustumPlanes(DirectX::XMFLOAT4 planes[6], DirectX::FXMMATRIX viewProj) noexcept;
+	static bool IsSphereInFrustum(const DirectX::XMFLOAT4 planes[6], const DirectX::XMFLOAT3& center, float radius) noexcept;
 
 	TileMapDef currentDef;
+	float cullingRadius = 0.0f; // bounding sphere radius for each tile
 	std::vector<std::unique_ptr<Tile>> tiles;
+	std::vector<DirectX::XMFLOAT3> tilePositions;
 	std::unique_ptr<Model> dynamicModel;
 };
