@@ -1,6 +1,6 @@
 #pragma once
 #include "TileMapDef.h"
-#include "Tile.h"
+#include "TileBatch.h"
 #include "Model.h"
 #include "Graphics.h"
 #include <vector>
@@ -11,7 +11,7 @@
 namespace Rgph { class RenderGraph; }
 
 // Manages a tile-based scene: a grid of textured tiles plus optional dynamic 3D objects.
-// All rendering uses unlit (flat) shading - no shadows, no directional lighting.
+// Tiles sharing the same texture are merged into batched draw calls for performance.
 class TileMapScene
 {
 public:
@@ -28,27 +28,24 @@ public:
 	// Link all drawables to the render graph
 	void LinkTechniques(Rgph::RenderGraph& rg);
 
-	// Submit only visible drawables for rendering (frustrum culling + draw distance)
-	// Returns number of tiles actually submitted
-	size_t Submit(size_t channels, Graphics& gfx) const;
+	// Submit batches for rendering. Returns total tile count submitted.
+	size_t Submit(size_t channels) const;
 
-	// Draw distance control (0 = unlimited)
+	// Draw distance control (0 = unlimited) - requires rebuild
 	void SetDrawDistance(float dist) noexcept { drawDistance = dist; }
 	float GetDrawDistance() const noexcept { return drawDistance; }
 
 	// Access for ImGui inspection
 	const TileMapDef& GetMapDef() const noexcept { return currentDef; }
 	Model* GetDynamicModel() const noexcept { return dynamicModel.get(); }
+	size_t GetBatchCount() const noexcept { return batches.size(); }
 
 private: 
-	void BuildTiles(Graphics& gfx);
-	static void ExtractFrustumPlanes(DirectX::XMFLOAT4 planes[6], DirectX::FXMMATRIX viewProj) noexcept;
-	static bool IsSphereInFrustum(const DirectX::XMFLOAT4 planes[6], const DirectX::XMFLOAT3& center, float radius) noexcept;
+	void BuildBatches(Graphics& gfx);
 
 	TileMapDef currentDef;
-	float cullingRadius = 0.0f; // bounding sphere radius for each tile
 	float drawDistance = 0.0f; // max render distance from camera (0 = unlimited)
-	std::vector<std::unique_ptr<Tile>> tiles;
-	std::vector<DirectX::XMFLOAT3> tilePositions;
+	std::vector<std::unique_ptr<TileBatch>> batches;
+	size_t totalTileCount = 0;
 	std::unique_ptr<Model> dynamicModel;
 };

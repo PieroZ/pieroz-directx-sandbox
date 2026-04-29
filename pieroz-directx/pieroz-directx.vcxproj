@@ -290,6 +290,7 @@
     <ClCompile Include="TexturedTriangleOverlay.cpp" />
     <ClCompile Include="TexturePreprocessor.cpp" />
     <ClCompile Include="Tile.cpp" />
+    <ClCompile Include="TileBatch.cpp" />
     <ClCompile Include="TileMapDef.cpp" />
     <ClCompile Include="TileMapScene.cpp" />
     <ClCompile Include="Topology.cpp" />
@@ -445,6 +446,7 @@
     <ClInclude Include="TestPlane.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Tile.h" />
+    <ClInclude Include="TileBatch.h" />
     <ClInclude Include="TileMapDef.h" />
     <ClInclude Include="TileMapScene.h" />
     <ClInclude Include="Topology.h" />

@@ -350,7 +350,7 @@ void App::DoFrameTileMap(float dt)
 {
 	pUnlitRg->BindMainCamera(cameras.GetActiveCamera());
 
-	const size_t submittedTiles = pTileScene->Submit(Chan::main, wnd.Gfx());
+	const size_t submittedTiles = pTileScene->Submit(Chan::main);
 	cameras.Submit(Chan::main);
 
 
@@ -378,7 +378,7 @@ void App::DoFrameTileMap(float dt)
 
 		ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "FPS: %.1f (%.2f ms)",
 			1.0f / dt, dt * 1000.0f);
-		ImGui::TextColored({ 1.0f, 1.0f, 0.0f, 1.0f }, "Rendered tiles: %zu / %zu",
+		/*ImGui::TextColored({ 1.0f, 1.0f, 0.0f, 1.0f }, "Rendered tiles: %zu / %zu",
 			submittedTiles, pTileScene->GetMapDef().tiles.size());
 
 		float drawDistance = pTileScene->GetDrawDistance();
@@ -390,7 +390,10 @@ void App::DoFrameTileMap(float dt)
 		{
 			ImGui::SameLine();
 			ImGui::TextDisabled({ " (unlimited)" });
-		}
+		}*/
+
+		ImGui::TextColored({ 1.0f, 1.0f, 0.0f, 1.0f }, "Tiles %zu | Draw calls: %zu",
+			submittedTiles, pTileScene->GetBatchCount());
 		ImGui::End();
 	}
 
