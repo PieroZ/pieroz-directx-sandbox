@@ -28,8 +28,13 @@ public:
 	// Link all drawables to the render graph
 	void LinkTechniques(Rgph::RenderGraph& rg);
 
-	// Submit only visible drawables for rendering (frustrum culling)
-	void Submit(size_t channels, Graphics& gfx) const;
+	// Submit only visible drawables for rendering (frustrum culling + draw distance)
+	// Returns number of tiles actually submitted
+	size_t Submit(size_t channels, Graphics& gfx) const;
+
+	// Draw distance control (0 = unlimited)
+	void SetDrawDistance(float dist) noexcept { drawDistance = dist; }
+	float GetDrawDistance() const noexcept { return drawDistance; }
 
 	// Access for ImGui inspection
 	const TileMapDef& GetMapDef() const noexcept { return currentDef; }
@@ -42,6 +47,7 @@ private:
 
 	TileMapDef currentDef;
 	float cullingRadius = 0.0f; // bounding sphere radius for each tile
+	float drawDistance = 0.0f; // max render distance from camera (0 = unlimited)
 	std::vector<std::unique_ptr<Tile>> tiles;
 	std::vector<DirectX::XMFLOAT3> tilePositions;
 	std::unique_ptr<Model> dynamicModel;

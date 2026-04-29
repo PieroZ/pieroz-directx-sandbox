@@ -50,19 +50,45 @@ void TileMapScene::LinkTechniques(Rgph::RenderGraph& rg)
 	}
 }
 
-void TileMapScene::Submit(size_t channels, Graphics& gfx) const
+size_t TileMapScene::Submit(size_t channels, Graphics& gfx) const
 {
 	// Extract frustum planes from current view-projection matrix
 	const auto viewProj = gfx.GetCamera() * gfx.GetProjection();
 	dx::XMFLOAT4 planes[6];
 	ExtractFrustumPlanes(planes, viewProj);
 
-	// Submit only tiles whose bounding sphere intersects the frustrum
+	// Get camera position for distance culling
+	const auto invView = dx::XMMatrixInverse(nullptr, gfx.GetCamera());
+	dx::XMFLOAT4X4 invViewF;
+	dx::XMStoreFloat4x4(&invViewF, invView);
+	const float camX = invViewF._41;
+	const float camY = invViewF._42;
+	const float camZ = invViewF._43;
+	const float distSq = drawDistance * drawDistance;
+
+	size_t submitted = 0;
+
+	// Submit only tiles within draw distance and inside frustum
 	for (size_t i = 0; i < tiles.size(); i++)
 	{
+		const auto& p = tilePositions[i];
+
+		// Distance culling (skip if DrawDistance > 0 and tile is too far)
+		if (drawDistance > 0.0f)
+		{
+			const float dx2 = p.x - camX;
+			const float dy2 = p.y - camY;
+			const float dz2 = p.z - camZ;
+			if ((dx2 * dx2 + dy2 * dy2 + dz2 * dz2) > distSq)
+			{
+				continue; // Tile is beyond draw distance
+			}
+		}
+
 		if (IsSphereInFrustum(planes, tilePositions[i], cullingRadius))
 		{
 			tiles[i]->Submit(channels);
+			submitted++;
 		}
 	}
 
@@ -70,6 +96,8 @@ void TileMapScene::Submit(size_t channels, Graphics& gfx) const
 	{
 		dynamicModel->Submit(channels);
 	}
+
+	return submitted;
 }
 
 void TileMapScene::BuildTiles(Graphics& gfx)

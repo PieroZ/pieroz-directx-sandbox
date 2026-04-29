@@ -350,7 +350,7 @@ void App::DoFrameTileMap(float dt)
 {
 	pUnlitRg->BindMainCamera(cameras.GetActiveCamera());
 
-	pTileScene->Submit(Chan::main, wnd.Gfx());
+	const size_t submittedTiles = pTileScene->Submit(Chan::main, wnd.Gfx());
 	cameras.Submit(Chan::main);
 
 
@@ -367,6 +367,33 @@ void App::DoFrameTileMap(float dt)
 	}
 
 	pUnlitRg->Execute(wnd.Gfx());
+
+	// Debug stats overlay (top-left corner, semi-transparent)
+	{
+		ImGui::SetNextWindowPos({ 10.0f, 10.0f }, ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowBgAlpha(0.6f);
+		ImGui::Begin("##DebugStats", nullptr,
+			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize |
+			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
+
+		ImGui::TextColored({ 0.0f, 1.0f, 0.0f, 1.0f }, "FPS: %.1f (%.2f ms)",
+			1.0f / dt, dt * 1000.0f);
+		ImGui::TextColored({ 1.0f, 1.0f, 0.0f, 1.0f }, "Rendered tiles: %zu / %zu",
+			submittedTiles, pTileScene->GetMapDef().tiles.size());
+
+		float drawDistance = pTileScene->GetDrawDistance();
+		if (ImGui::SliderFloat("Draw Distance", &drawDistance, 0.0f, 500.0f, "%.0f"))
+		{
+			pTileScene->SetDrawDistance(drawDistance);
+		}
+		if (drawDistance == 0.0f)
+		{
+			ImGui::SameLine();
+			ImGui::TextDisabled({ " (unlimited)" });
+		}
+		ImGui::End();
+	}
+
 
 	ShowTileMapWindow();
 	ShowPickingWindow();
