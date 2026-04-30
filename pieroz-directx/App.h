@@ -46,6 +46,7 @@ private:
 	void ShowPickingWindow();
 	void RebuildTexturedOverlays();
 	void ShowExportWindow();
+	void ShowNprimImportWindow();
 	void ShowTileMapWindow();
 
 	// Helper to get active render graph

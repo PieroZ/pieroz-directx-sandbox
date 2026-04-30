@@ -70,6 +70,15 @@
     <Filter Include="Header Files\Jobber\Passlib\Base">
       <UniqueIdentifier>{4e11c64f-ba48-46ac-823c-6ef765552a6b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\UC-Formats">
+      <UniqueIdentifier>{4b8756bc-ab68-4969-8ba1-485c1ab452b2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\UC-utils">
+      <UniqueIdentifier>{2b791841-c04c-4ef4-babe-a8fb63c032fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UC-utils">
+      <UniqueIdentifier>{be635e2a-0d07-4f91-a60e-9ca9cbe88adf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="WinMain.cpp">
@@ -340,6 +349,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TileBatch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="primLoader.cpp">
+      <Filter>Source Files\UC-utils</Filter>
+    </ClCompile>
+    <ClCompile Include="PrimConverter.cpp">
+      <Filter>Source Files\UC-utils</Filter>
+    </ClCompile>
+    <ClCompile Include="TestPrimLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -719,12 +737,6 @@
     <ClInclude Include="TileMapDef.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Pap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="iamLoader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="TextureIdToFilenameHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -732,6 +744,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TileBatch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="prim.h">
+      <Filter>Header Files\UC-Formats</Filter>
+    </ClInclude>
+    <ClInclude Include="Pap.h">
+      <Filter>Header Files\UC-Formats</Filter>
+    </ClInclude>
+    <ClInclude Include="primLoader.h">
+      <Filter>Header Files\UC-utils</Filter>
+    </ClInclude>
+    <ClInclude Include="iamLoader.h">
+      <Filter>Header Files\UC-utils</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimConverter.h">
+      <Filter>Header Files\UC-utils</Filter>
+    </ClInclude>
+    <ClInclude Include="TestPrimLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

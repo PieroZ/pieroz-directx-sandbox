@@ -104,6 +104,8 @@
     <ClCompile Include="cnpy.cpp" />
     <ClCompile Include="CubeTexture.cpp" />
     <ClCompile Include="ObjExporter.cpp" />
+    <ClCompile Include="PrimConverter.cpp" />
+    <ClCompile Include="primLoader.cpp" />
     <ClCompile Include="ShadowCameraCBuf.cpp" />
     <ClCompile Include="CameraContainer.cpp" />
     <ClCompile Include="CameraIndicator.cpp" />
@@ -286,6 +288,7 @@
     <ClCompile Include="Testing.cpp" />
     <ClCompile Include="TestPlane.cpp" />
     <ClCompile Include="ScaleOutlineRenderGraph.cpp" />
+    <ClCompile Include="TestPrimLoader.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="TexturedTriangleOverlay.cpp" />
     <ClCompile Include="TexturePreprocessor.cpp" />
@@ -350,9 +353,12 @@
     <ClInclude Include="CubeTexture.h" />
     <ClInclude Include="iamLoader.h" />
     <ClInclude Include="iamToJson.h" />
+    <ClInclude Include="prim.h" />
     <ClInclude Include="ObjExporter.h" />
     <ClInclude Include="Pap.h" />
     <ClInclude Include="Picking.h" />
+    <ClInclude Include="PrimConverter.h" />
+    <ClInclude Include="primLoader.h" />
     <ClInclude Include="ShadowCameraCBuf.h" />
     <ClInclude Include="CameraContainer.h" />
     <ClInclude Include="CameraIndicator.h" />
@@ -411,6 +417,7 @@
     <ClInclude Include="Testing.h" />
     <ClInclude Include="TestModelProbe.h" />
     <ClInclude Include="ScaleOutlineRenderGraph.h" />
+    <ClInclude Include="TestPrimLoader.h" />
     <ClInclude Include="TexturedTriangleOverlay.h" />
     <ClInclude Include="TextureIdToFilenameHelper.h" />
     <ClInclude Include="TexturePreprocessor.h" />

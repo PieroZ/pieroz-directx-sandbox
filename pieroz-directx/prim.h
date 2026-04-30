@@ -2,6 +2,13 @@
 
 #include <cstdint>
 
+struct PrimPoint
+{
+    std::int16_t X;
+    std::int16_t Y;
+    std::int16_t Z;
+};
+
 struct PrimFace3
 {
 	std::uint8_t TexturePage;

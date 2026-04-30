@@ -63,6 +63,7 @@ ScriptCommander::ScriptCommander( const std::vector<std::string>& args )
 					TestDynamicMeshLoading();
 					TestScaleMatrixTranslation();
 					TestNumpy();
+					TestPrimLoader();
 					abort = true;
 				}
 				else

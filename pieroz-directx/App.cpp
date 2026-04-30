@@ -18,6 +18,7 @@
 #include "TileMapDef.h"
 #include "iamLoader.h"
 #include "iamToJson.h"
+#include "primLoader.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -33,7 +34,7 @@ static std::string OpenModelFileDialog()
 	ofn.lpstrFile = buf.data();
 	ofn.nMaxFile = (DWORD)buf.size();
 	ofn.lpstrFilter = "Model Files\0*.obj;*.fbx;*.gltf;*.dae;*.3ds\0All Files\0*.*\0";
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
 	if (GetOpenFileNameA(&ofn))
 	{
 		return std::string(buf.data());
@@ -398,6 +399,7 @@ void App::DoFrameTileMap(float dt)
 	}
 
 
+	ShowNprimImportWindow();
 	ShowTileMapWindow();
 	ShowPickingWindow();
 
@@ -857,6 +859,47 @@ void App::ShowExportWindow()
 		}
 
 	}
+	ImGui::End();
+}
+
+void App::ShowNprimImportWindow()
+{
+	ImGui::Begin("Import Prim");
+
+	static char nprimFilePath[MAX_PATH] = "";
+	ImGui::InputText("Prim File", nprimFilePath, MAX_PATH);
+
+	if (ImGui::Button("Browse Prim ..."))
+	{
+		std::array<char, MAX_PATH> buf{};
+		OPENFILENAMEA ofn{};
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = nullptr;
+		ofn.lpstrFile = buf.data();
+		ofn.nMaxFile = (DWORD)buf.size();
+		ofn.lpstrFilter = "Prim Files\0*.prm\0All Files\0*.*\0";
+		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+		if (GetOpenFileNameA(&ofn))
+		{
+			strncpy_s(nprimFilePath, buf.data(), MAX_PATH);
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Load Prim"))
+	{
+		try
+		{
+			auto def = LoadPrimObject(nprimFilePath);
+
+			/*pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
+			pTileScene->LinkTechniques(*pUnlitRg);*/
+		}
+		catch (const std::exception& e)
+		{
+			//tileModelLoadError = std::string("Prim load error: ") + e.what();
+		}
+	}
+
 	ImGui::End();
 }
 
