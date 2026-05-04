@@ -19,6 +19,7 @@
 #include "iamLoader.h"
 #include "iamToJson.h"
 #include "primLoader.h"
+#include "PrimConverter.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -353,6 +354,38 @@ void App::DoFrameTileMap(float dt)
 
 	const size_t submittedTiles = pTileScene->Submit(Chan::main);
 	cameras.Submit(Chan::main);
+
+	// Update and submit prim drawable
+	if (pPrimDrawable)
+	{
+		if (primFollowCursor)
+		{
+			// Project mouse cursor onto Y=0 ground plane
+			const auto [mouseX, mouseY] = wnd.mouse.GetPos();
+			const int vpWidth = (int)wnd.Gfx().GetWidth();
+			const int vpHeight = (int)wnd.Gfx().GetHeight();
+			const auto viewMatrix = cameras->GetMatrix();
+			const auto projMatrix = cameras->GetProjection();
+			auto [rayOrigin, rayDir] = Picking::ScreenToRay(mouseX, mouseY, vpWidth, vpHeight, projMatrix, viewMatrix);
+
+			// Intersect ray with Y=0 plane
+			const float originY = dx::XMVectorGetY(rayOrigin);
+			const float dirY = dx::XMVectorGetY(rayDir);
+			if(std::abs(dirY) > 1e-6f) // Avoid division by zero
+			{
+				const float t = -originY / dirY;
+				if(t > 0.0f) // Only consider intersections in front of the camera
+				{
+					const auto hitPoint = dx::XMVectorAdd(rayOrigin, dx::XMVectorScale(rayDir, t));
+					pPrimDrawable->SetPosition(
+						dx::XMVectorGetX(hitPoint),
+						0.0f,
+						dx::XMVectorGetZ(hitPoint));
+				}
+			}
+		}
+		pPrimDrawable->Submit(Chan::main);
+	}
 
 
 	// Submit triangle indicator if picking is active
@@ -878,7 +911,7 @@ void App::ShowNprimImportWindow()
 		ofn.lpstrFile = buf.data();
 		ofn.nMaxFile = (DWORD)buf.size();
 		ofn.lpstrFilter = "Prim Files\0*.prm\0All Files\0*.*\0";
-		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
 		if (GetOpenFileNameA(&ofn))
 		{
 			strncpy_s(nprimFilePath, buf.data(), MAX_PATH);
@@ -891,13 +924,33 @@ void App::ShowNprimImportWindow()
 		{
 			auto def = LoadPrimObject(nprimFilePath);
 
-			/*pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
-			pTileScene->LinkTechniques(*pUnlitRg);*/
+			auto triList = ConvertPrimToTriangleList(def);
+			pPrimDrawable = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(triList));
+			pPrimDrawable->LinkTechniques(*pUnlitRg);
+			primFollowCursor = true;
 		}
 		catch (const std::exception& e)
 		{
-			//tileModelLoadError = std::string("Prim load error: ") + e.what();
+			tileModelLoadError = std::string("Prim load error: ") + e.what();
 		}
+	}
+
+	if (pPrimDrawable)
+	{
+		ImGui::Checkbox("Follow Cursor", &primFollowCursor);
+
+		if (!primFollowCursor)
+		{
+			auto pos = pPrimDrawable->GetPosition();
+			if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
+			{
+				pPrimDrawable->SetPosition(pos);
+			}
+		}
+	}
+	if (!tileModelLoadError.empty())
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "%s", tileModelLoadError.c_str());
 	}
 
 	ImGui::End();

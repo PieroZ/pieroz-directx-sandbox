@@ -360,6 +360,9 @@
     <ClCompile Include="TestPrimLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PrimDrawable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowsMessageMap.h">
@@ -762,6 +765,9 @@
       <Filter>Header Files\UC-utils</Filter>
     </ClInclude>
     <ClInclude Include="TestPrimLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimDrawable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

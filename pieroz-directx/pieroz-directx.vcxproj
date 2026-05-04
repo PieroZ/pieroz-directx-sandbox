@@ -105,6 +105,7 @@
     <ClCompile Include="CubeTexture.cpp" />
     <ClCompile Include="ObjExporter.cpp" />
     <ClCompile Include="PrimConverter.cpp" />
+    <ClCompile Include="PrimDrawable.cpp" />
     <ClCompile Include="primLoader.cpp" />
     <ClCompile Include="ShadowCameraCBuf.cpp" />
     <ClCompile Include="CameraContainer.cpp" />
@@ -358,6 +359,7 @@
     <ClInclude Include="Pap.h" />
     <ClInclude Include="Picking.h" />
     <ClInclude Include="PrimConverter.h" />
+    <ClInclude Include="PrimDrawable.h" />
     <ClInclude Include="primLoader.h" />
     <ClInclude Include="ShadowCameraCBuf.h" />
     <ClInclude Include="CameraContainer.h" />

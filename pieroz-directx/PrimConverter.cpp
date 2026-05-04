@@ -76,10 +76,11 @@ IndexedTriangleList ConvertPrimToTriangleList(
 				uvToFloat2(f.UV[v][0], f.UV[v][1])
 			);
 		}
+
 		// Triangle 1: (0,1,2)
 		indices.push_back(baseIdx + 0);
+		indices.push_back(baseIdx + 3);
 		indices.push_back(baseIdx + 1);
-		indices.push_back(baseIdx + 2);
 		// Triangle 2: (0,2,3)
 		indices.push_back(baseIdx + 0);
 		indices.push_back(baseIdx + 2);

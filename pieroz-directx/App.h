@@ -16,6 +16,7 @@
 #include "TexturedTriangleOverlay.h"
 #include "ObjExporter.h"
 #include "TileMapScene.h"
+#include "PrimDrawable.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -95,6 +96,11 @@ private:
 	std::unique_ptr<TileMapScene> pTileScene;
 	std::string tileModelLoadError;
 	float tileModelScale = 1.0f;
+
+
+	//Prim object placed in scene
+	std::unique_ptr<PrimDrawable> pPrimDrawable;
+	bool primFollowCursor = true;
 
 	bool savingDepth = false;
 	bool showImguiDebugWindows = false;

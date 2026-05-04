@@ -47,5 +47,17 @@ PrimLoadResult LoadPrimObject(const std::string& filePath)
 			numFaces4 * sizeof(PrimFace4));
     }
 
+    for(auto& f : result.faces3)
+    {
+		for (int i = 0; i < 3; i++)
+            f.Points[i] -= result.object.StartPoint;
+    }
+
+	for (auto& f : result.faces4)
+    {
+        for (int i = 0; i < 4; i++)
+            f.Points[i] -= result.object.StartPoint;
+    }
+
     return result;
 }
