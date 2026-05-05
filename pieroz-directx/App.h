@@ -98,9 +98,10 @@ private:
 	float tileModelScale = 1.0f;
 
 
-	//Prim object placed in scene
-	std::unique_ptr<PrimDrawable> pPrimDrawable;
-	bool primFollowCursor = true;
+	//Prim objects placed in scene
+	std::vector<std::vector<std::unique_ptr<PrimDrawable>>> primPlaced;
+	// Preview prim following cursor (not yet placed)
+	std::vector<std::unique_ptr<PrimDrawable>> primPreview;
 
 	bool savingDepth = false;
 	bool showImguiDebugWindows = false;

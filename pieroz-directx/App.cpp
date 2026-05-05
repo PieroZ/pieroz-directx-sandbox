@@ -355,37 +355,62 @@ void App::DoFrameTileMap(float dt)
 	const size_t submittedTiles = pTileScene->Submit(Chan::main);
 	cameras.Submit(Chan::main);
 
-	// Update and submit prim drawable
-	if (pPrimDrawable)
+	// Submit permanently placed prims
+	for (auto& group : primPlaced)
 	{
-		if (primFollowCursor)
+		for (auto& pd : group)
 		{
-			// Project mouse cursor onto Y=0 ground plane
-			const auto [mouseX, mouseY] = wnd.mouse.GetPos();
-			const int vpWidth = (int)wnd.Gfx().GetWidth();
-			const int vpHeight = (int)wnd.Gfx().GetHeight();
-			const auto viewMatrix = cameras->GetMatrix();
-			const auto projMatrix = cameras->GetProjection();
-			auto [rayOrigin, rayDir] = Picking::ScreenToRay(mouseX, mouseY, vpWidth, vpHeight, projMatrix, viewMatrix);
+			pd->Submit(Chan::main);
+		}
+	}
 
-			// Intersect ray with Y=0 plane
-			const float originY = dx::XMVectorGetY(rayOrigin);
-			const float dirY = dx::XMVectorGetY(rayDir);
-			if(std::abs(dirY) > 1e-6f) // Avoid division by zero
+
+
+	// Update and submit prim preview (follows cursor)
+	if (!primPreview.empty())
+	{
+		// Project mouse cursor onto Y=0 ground plane
+		const auto [mouseX, mouseY] = wnd.mouse.GetPos();
+		const int vpWidth = (int)wnd.Gfx().GetWidth();
+		const int vpHeight = (int)wnd.Gfx().GetHeight();
+		const auto viewMatrix = cameras->GetMatrix();
+		const auto projMatrix = cameras->GetProjection();
+		auto [rayOrigin, rayDir] = Picking::ScreenToRay(mouseX, mouseY, vpWidth, vpHeight, projMatrix, viewMatrix);
+
+		// Intersect ray with Y=0 plane
+		const float originY = dx::XMVectorGetY(rayOrigin);
+		const float dirY = dx::XMVectorGetY(rayDir);
+		if (std::abs(dirY) > 1e-6f) // Avoid division by zero
+		{
+			const float t = -originY / dirY;
+			if (t > 0.0f) // Only consider intersections in front of the camera
 			{
-				const float t = -originY / dirY;
-				if(t > 0.0f) // Only consider intersections in front of the camera
+				const auto hitPoint = dx::XMVectorAdd(rayOrigin, dx::XMVectorScale(rayDir, t));
+				for (auto& pd : primPreview)
 				{
-					const auto hitPoint = dx::XMVectorAdd(rayOrigin, dx::XMVectorScale(rayDir, t));
-					pPrimDrawable->SetPosition(
+					pd->SetPosition(
 						dx::XMVectorGetX(hitPoint),
 						0.0f,
 						dx::XMVectorGetZ(hitPoint));
 				}
 			}
 		}
-		pPrimDrawable->Submit(Chan::main);
+
+		// On left click, place the preview permanently
+		if (wnd.mouse.LeftIsPressed())
+		{
+			primPlaced.push_back(std::move(primPreview));
+			primPreview.clear();
+		}
+		else
+		{
+			for (auto& pd : primPreview)
+			{
+				pd->Submit(Chan::main);
+			}
+		}
 	}
+
 
 
 	// Submit triangle indicator if picking is active
@@ -923,30 +948,30 @@ void App::ShowNprimImportWindow()
 		try
 		{
 			auto def = LoadPrimObject(nprimFilePath);
-
-			auto triList = ConvertPrimToTriangleList(def);
-			pPrimDrawable = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(triList));
-			pPrimDrawable->LinkTechniques(*pUnlitRg);
-			primFollowCursor = true;
+			auto texturedLists = ConvertPrimToTexturedTriangleList(def);
+			primPreview.clear();
+			for (auto& [texImgNo, triList] : texturedLists)
+			{
+				std::string texPath = GetPrimTexturePath(texImgNo);
+				auto pd = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(triList), texPath);
+				pd->LinkTechniques(*pUnlitRg);
+				primPreview.push_back(std::move(pd));
+			}
 		}
 		catch (const std::exception& e)
 		{
 			tileModelLoadError = std::string("Prim load error: ") + e.what();
 		}
 	}
-
-	if (pPrimDrawable)
+		
+	ImGui::Text("Placed prims: %zu", primPlaced.size());
+	if(!primPlaced.empty() && ImGui::Button("Clear All Placed"))
 	{
-		ImGui::Checkbox("Follow Cursor", &primFollowCursor);
-
-		if (!primFollowCursor)
-		{
-			auto pos = pPrimDrawable->GetPosition();
-			if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
-			{
-				pPrimDrawable->SetPosition(pos);
-			}
-		}
+		primPlaced.clear();
+	}
+	if (!primPreview.empty())
+	{
+		ImGui::Text("Preview active - click to place");
 	}
 	if (!tileModelLoadError.empty())
 	{

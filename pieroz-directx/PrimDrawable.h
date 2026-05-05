@@ -2,6 +2,7 @@
 #include "Drawable.h"
 #include "IndexedTriangleList.h"
 #include <DirectXMath.h>
+#include <string>
 
 namespace Rgph { class RenderGraph; }
 
@@ -10,7 +11,7 @@ namespace Rgph { class RenderGraph; }
 class PrimDrawable : public Drawable
 {
 public:
-	PrimDrawable(Graphics& gfx, IndexedTriangleList triList);
+	PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std::string& texturePath = "Images\\white.png");
 	DirectX::XMMATRIX GetTransformXM() const noexcept override;
 	void SetPosition(const DirectX::XMFLOAT3& pos) noexcept;
 	void SetPosition(float x, float y, float z) noexcept;

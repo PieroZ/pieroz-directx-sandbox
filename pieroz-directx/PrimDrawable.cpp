@@ -4,7 +4,7 @@
 
 namespace dx = DirectX;
 
-PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList)
+PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std::string& texturePath)
 {
 	using namespace Bind;
 
@@ -28,7 +28,7 @@ PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList)
 		step.AddBindable(PixelShader::Resolve(gfx, "Unlit_PS.cso"));
 
 		// Use a white 1x1 fallback texture so Unlit_PS sampler doesn't fail
-		step.AddBindable(Bind::Texture::Resolve(gfx, "Images\\white.png", 0u));
+		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
 		step.AddBindable(Sampler::Resolve(gfx));
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
 		step.AddBindable(Rasterizer::Resolve(gfx, false));
