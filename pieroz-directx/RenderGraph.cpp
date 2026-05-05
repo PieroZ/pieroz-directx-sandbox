@@ -62,6 +62,22 @@ namespace Rgph
 		}
 	}
 
+	void RenderGraph::OnResize(Graphics& gfx)
+	{
+		// Reacquire new buffers
+		backBufferTarget = gfx.GetTarget();
+		masterDepth = std::make_shared<Bind::OutputOnlyDepthStencil>(gfx);
+	}
+
+	void RenderGraph::OnResizeComplete(Graphics& gfx)
+	{
+		// Release old buffer references so swap chain can resize
+		backBufferTarget.reset();
+		masterDepth.reset();
+	}
+
+
+
 	void RenderGraph::Reset() noexcept
 	{
 		assert( finalized );

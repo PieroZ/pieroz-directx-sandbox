@@ -565,6 +565,14 @@ void Window::ToggleFullscreen() noexcept
 				mi.rcMonitor.right - mi.rcMonitor.left,
 				mi.rcMonitor.bottom - mi.rcMonitor.top,
 				SWP_NOOWNERZORDER | SWP_FRAMECHANGED );
+
+			// Resize swap chain to match monitor resolution
+		/*	if (pGfx)
+			{
+				pGfx->OnResize(
+					static_cast<UINT>(mi.rcMonitor.right - mi.rcMonitor.left),
+					static_cast<UINT>(mi.rcMonitor.bottom - mi.rcMonitor.top));
+			}*/
 		}
 		isFullscreen = true;
 	}

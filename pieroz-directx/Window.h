@@ -81,6 +81,7 @@ public:
 	static std::optional<int> ProcessMessages() noexcept;
 	Graphics& Gfx();
 	void ToggleFullscreen() noexcept;
+	HWND GetHwnd() const noexcept { return hWnd; }
 private:
 	void ConfineCursor() noexcept;
 	void FreeCursor() noexcept;

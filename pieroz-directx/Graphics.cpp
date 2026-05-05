@@ -185,6 +185,40 @@ std::shared_ptr<Bind::RenderTarget> Graphics::GetTarget()
 }
 
 
+void Graphics::OnResize(UINT newWidth, UINT newHeight)
+{
+	if (newWidth == 0 || newHeight == 0)
+	{
+		return;
+	}
+
+	width = newWidth;
+	height = newHeight;
+
+	// Release old render target before resizing
+	pTarget.reset();
+	pContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+	HRESULT hr;
+	// Resize swap chain buffers
+	GFX_THROW_INFO(pSwap->ResizeBuffers(0, newWidth, newHeight, DXGI_FORMAT_UNKNOWN, 0));
+
+	// Recreate render target from new back buffer
+	wrl::ComPtr<ID3D11Texture2D> pBackBuffer;
+	GFX_THROW_INFO(pSwap->GetBuffer(0, __uuidof(ID3D11Texture2D), &pBackBuffer));
+	pTarget = std::shared_ptr < Bind::RenderTarget>{ new Bind::OutputOnlyRenderTarget(*this,pBackBuffer.Get()) };
+
+	// Update viewport
+	D3D11_VIEWPORT vp;
+	vp.Width = (float)newWidth;
+	vp.Height = (float)newHeight;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	vp.TopLeftX = 0.0f;
+	vp.TopLeftY = 0.0f;
+	pContext->RSSetViewports(1u, &vp);
+}
+
 // Graphics exception stuff
 Graphics::HrException::HrException( int line,const char* file,HRESULT hr,std::vector<std::string> infoMsgs ) noexcept
 	:

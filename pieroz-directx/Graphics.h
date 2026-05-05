@@ -75,6 +75,7 @@ public:
 	UINT GetWidth() const noexcept;
 	UINT GetHeight() const noexcept;
 	std::shared_ptr<Bind::RenderTarget> GetTarget();
+	void OnResize(UINT newWidth, UINT newHeight);
 private:
 	UINT width;
 	UINT height;

@@ -152,8 +152,37 @@ void App::HandleInput( float dt )
 			showImguiDebugWindows = !showImguiDebugWindows;
 			break;
 		case VK_F4:
+		{
 			wnd.ToggleFullscreen();
+			// 1. Release render graph buffer references
+			if (pUnlitRg)
+			{
+				pUnlitRg->OnResize(wnd.Gfx());
+			}
+			else if (pBlurRg)
+			{
+				pBlurRg->OnResize(wnd.Gfx());
+			}
+			// 2. Toggle window mode (changes window size)
+			wnd.ToggleFullscreen();
+			// 3. Resize swap chain to new client area
+			RECT rc;
+			GetClientRect(wnd.GetHwnd(), &rc);
+			wnd.Gfx().OnResize(
+				static_cast<UINT>(rc.right - rc.left),
+				static_cast<UINT>(rc.bottom - rc.top));
+			// 4. Reacquire buffers in render graph
+			if (pUnlitRg)
+			{
+				pUnlitRg->OnResizeComplete(wnd.Gfx());
+			}
+			else if (pBlurRg)
+			{
+				pBlurRg->OnResizeComplete(wnd.Gfx());
+			}
+
 			break;
+		}
 		case VK_RETURN:
 			savingDepth = true;
 			break;
