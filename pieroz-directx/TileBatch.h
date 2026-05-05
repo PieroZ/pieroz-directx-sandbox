@@ -12,6 +12,8 @@ public:
 	struct TileInstance
 	{
 		float worldX, worldY, worldZ;
+		int rotation = 0; // 0-3 0, 90, 180, 270
+		int flip = 0;
 	};
 
 	// Build a single mesh from all tile instances (same texture, same tile size)

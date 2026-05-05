@@ -23,10 +23,14 @@ json BuildMapJson(const std::vector<PAP_Hi>& tiles)
         {
             const auto& t = tiles[row * MAP_SIZE + col];
 
-            int page = get_page(t.Texture);
+            //int page = get_page(t.Texture);
+            int num = t.Texture & 0x3ff;
+            int trot = (t.Texture >> 0xa) & 0x3;
+            int rtflip  = (t.Texture >> 0xc) & 0x3;
+            int tsize  = (t.Texture >> 0xe) & 0x3;
 
             auto paths = get_texture_paths(
-                page,
+                num,
                 "UC-data/textures/world3/",
                 "UC-data/textures/shared/",
                 "UC-data/textures/inside/",
@@ -41,6 +45,9 @@ json BuildMapJson(const std::vector<PAP_Hi>& tiles)
             tile["height"] = static_cast<float>(t.Height);
 
             tile["texture"] = paths.res64;
+            tile["rotation"] = trot;
+            tile["flip"] = rtflip;
+            tile["tsize"] = tsize;
 
             j["tiles"].push_back(tile);
         }

@@ -31,12 +31,41 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 		const float cx = instances[i].worldX;
 		const float cy = instances[i].worldY;
 		const float cz = instances[i].worldZ;
+		const int rot = instances[i].rotation;
+		const int flip = instances[i].flip;
+
+		// Base UVs: top-left, top-right, bottom-right, bottom-left
+		dx::XMFLOAT2 uvs[4] = {
+			{ 0.0f, 0.0f},
+			{ 1.0f, 0.0f},
+			{ 1.0f, 1.0f},
+			{ 0.0f, 1.0f}
+		};
+
+		// Apply flip first ( bit 0 = horizontal flip, bit 1 = vertical flip)
+		if (flip & 0x1)
+		{
+			for (auto& uv : uvs) uv.x = 1.0f - uv.x;
+		}
+		if (flip & 0x2)
+		{
+			for (auto& uv : uvs) uv.y = 1.0f - uv.y;
+		}
+
+		// Apply rotation (rotate UV indices clock2wise by rot * 90)
+		// Rotating UVs means shifting which UV goes to which vertex
+		dx::XMFLOAT2 rotatedUvs[4];
+		for (int v = 0; v < 4; v++)
+		{
+			rotatedUvs[v] = uvs[(v + rot + 1) % 4];
+		}
+
 
 		// 4 vertices per tile, pre-transformed to world space
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx - half, cy, cz + half }, normal, dx::XMFLOAT2{ 0.0f, 0.0f });
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx + half, cy, cz + half }, normal, dx::XMFLOAT2{ 1.0f, 0.0f });
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx + half, cy, cz - half }, normal, dx::XMFLOAT2{ 1.0f, 1.0f });
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx - half, cy, cz - half }, normal, dx::XMFLOAT2{ 0.0f, 1.0f });
+		vbuf.EmplaceBack(dx::XMFLOAT3{ cx - half, cy, cz + half }, normal, rotatedUvs[0]);
+		vbuf.EmplaceBack(dx::XMFLOAT3{ cx + half, cy, cz + half }, normal, rotatedUvs[1]);
+		vbuf.EmplaceBack(dx::XMFLOAT3{ cx + half, cy, cz - half }, normal, rotatedUvs[2]);
+		vbuf.EmplaceBack(dx::XMFLOAT3{ cx - half, cy, cz - half }, normal, rotatedUvs[3]);
 
 		const auto base = static_cast<unsigned short>(i * 4);
 		indices.push_back(base + 0);

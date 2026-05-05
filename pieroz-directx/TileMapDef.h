@@ -10,6 +10,8 @@ struct TileDef
 	int row = 0;				// grid row (Z)
 	float height = 0.0f;		// Y offset (all same for now, extensible)
 	std::string texturePath;	// path to tile texture
+	int rotation = 0;
+	int flip = 0;
 };
 
 // Definition of the entire tile map.

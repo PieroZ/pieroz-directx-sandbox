@@ -80,7 +80,7 @@ void TileMapScene::BuildBatches(Graphics& gfx)
 		const float worldZ = currentDef.originZ + tileDef.row * currentDef.tileSize;
 		const float worldY = tileDef.height;
 
-		groups[tileDef.texturePath].push_back({ worldX, worldY, worldZ });
+		groups[tileDef.texturePath].push_back({ worldX, worldY, worldZ, tileDef.rotation, tileDef.flip });
 	}
 
 	totalTileCount = currentDef.tiles.size();
