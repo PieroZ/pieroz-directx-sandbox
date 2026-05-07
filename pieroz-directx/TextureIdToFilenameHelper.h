@@ -28,9 +28,9 @@ TexturePaths get_texture_paths(
         {
             char buf32[64], buf64[64], buf128[64];
 
-            sprintf_s(buf32, sizeof(buf32), "%stex%03d.png", dir.c_str(), p);
-            sprintf_s(buf64, sizeof(buf64), "%stex%03dhi.png", dir.c_str(), p);
-            sprintf_s(buf128, sizeof(buf128), "%stex%03dto.png", dir.c_str(), p);
+            sprintf_s(buf32, sizeof(buf32), "%stex%03d.tga", dir.c_str(), p);
+            sprintf_s(buf64, sizeof(buf64), "%stex%03dhi.tga", dir.c_str(), p);
+            sprintf_s(buf128, sizeof(buf128), "%stex%03dto.tga", dir.c_str(), p);
 
             return TexturePaths{ buf32, buf64, buf128 };
         };

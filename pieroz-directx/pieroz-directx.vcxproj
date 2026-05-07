@@ -352,6 +352,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="cnpy.h" />
     <ClInclude Include="CubeTexture.h" />
+    <ClInclude Include="iam.h" />
     <ClInclude Include="iamLoader.h" />
     <ClInclude Include="iamToJson.h" />
     <ClInclude Include="prim.h" />

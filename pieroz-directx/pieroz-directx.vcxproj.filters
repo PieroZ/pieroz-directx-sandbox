@@ -770,6 +770,9 @@
     <ClInclude Include="PrimDrawable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="iam.h">
+      <Filter>Header Files\UC-Formats</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="pieroz-directx.rc">

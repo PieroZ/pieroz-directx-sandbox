@@ -176,6 +176,6 @@ std::string GetPrimTexturePath(int textureImgNo)
 	std::ostringstream oss;
 	oss << "C:/dev/workspaces/repo clones/hw3d/pieroz-directx/pieroz-directx/UC-data/textures/prims/tex"
 		<< std::setw(3) << std::setfill('0') << textureImgNo
-		<< "hi.png";
+		<< "hi.tga";
 	return oss.str();
 }

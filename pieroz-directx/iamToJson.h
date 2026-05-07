@@ -31,7 +31,7 @@ json BuildMapJson(const std::vector<PAP_Hi>& tiles)
 
             auto paths = get_texture_paths(
                 num,
-                "UC-data/textures/world3/",
+                "UC-data/textures/world8/",
                 "UC-data/textures/shared/",
                 "UC-data/textures/inside/",
                 "UC-data/textures/people/",
