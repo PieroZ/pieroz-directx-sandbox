@@ -147,10 +147,6 @@ struct iam
 	unsigned int save_type;
 	unsigned int ob_size;
 	std::vector<PAP_Hi> pap_hi = std::vector<PAP_Hi>(MAP_SIZE);
-	std::array<
-		std::array<unsigned short, PAP_SIZE_HI>,
-		PAP_SIZE_HI
-	> WARE_roof_tex;
 	unsigned short temp;
 	std::vector<LoadGameThing> map_thing;
 	signed short next_dbuilding = 1;

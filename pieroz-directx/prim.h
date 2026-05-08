@@ -9,6 +9,11 @@ struct PrimPoint
     std::int16_t Z;
 };
 
+struct	OldPrimPoint
+{
+    std::int32_t	X, Y, Z;
+};
+
 struct PrimFace3
 {
 	std::uint8_t TexturePage;
@@ -63,4 +68,22 @@ struct	PrimObject
     std::uint8_t damage; // How this prim gets damaged
     std::uint8_t shadowtype;
     std::uint8_t flag;
+};
+
+struct	PrimObjectOld
+{
+    std::int8_t	    ObjectName[32];
+    std::uint16_t	StartPoint;
+    std::uint16_t	EndPoint;
+    std::uint16_t	StartFace4;
+    std::uint16_t	EndFace4;
+    std::int16_t	StartFace3;
+    std::int16_t	EndFace3;
+
+    std::uint8_t   coltype;
+    std::uint8_t   damage;		// How this prim gets damaged
+    std::uint8_t   shadowtype;
+    std::uint8_t   flag;
+
+    std::uint16_t	Dummy[4];
 };

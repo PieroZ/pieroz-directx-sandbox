@@ -6,7 +6,7 @@
 
 using json = nlohmann::json;
 
-json BuildMapJson(const std::vector<PAP_Hi>& tiles)
+json BuildMapJson(const std::vector<PAP_Hi>& tiles, int worldNo)
 {
     json j;
 
@@ -31,7 +31,7 @@ json BuildMapJson(const std::vector<PAP_Hi>& tiles)
 
             auto paths = get_texture_paths(
                 num,
-                "UC-data/textures/world8/",
+                "UC-data/textures/world" + std::to_string(worldNo) + "/",
                 "UC-data/textures/shared/",
                 "UC-data/textures/inside/",
                 "UC-data/textures/people/",

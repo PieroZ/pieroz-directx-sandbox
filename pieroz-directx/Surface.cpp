@@ -120,7 +120,10 @@ Surface Surface::FromFile(const std::string& name)
 	{
 		std::string kappaPath = "Images/kappa50.png";
 		hr = DirectX::LoadFromWICFile(ToWide(kappaPath).c_str(), DirectX::WIC_FLAGS_IGNORE_SRGB, nullptr, scratch);
-		//throw Surface::Exception( __LINE__,__FILE__,name,"Failed to load image",hr );
+		if (FAILED(hr))
+		{
+			throw Surface::Exception( __LINE__,__FILE__,name,"Failed to load image",hr );
+		}
 	}
 
 	if( scratch.GetImage( 0,0,0 )->format != format )

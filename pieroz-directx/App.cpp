@@ -112,14 +112,6 @@ App::App( const std::string& commandLine, SceneType scene )
 		pTileScene->LinkTechniques(*pUnlitRg);
 		cameras.LinkTechniques(*pUnlitRg);
 	}
-
-	std::string testMapPath = "UC-data\\maps\\bball2.iam";
-	std::vector<PAP_Hi> tiles = LoadIamMap(testMapPath);
-
-
-	auto mapjson = BuildMapJson(tiles);
-
-	SaveIamToJson(mapjson, "bball2_map.json");
 }
 
 void App::HandleInput( float dt )
@@ -478,7 +470,7 @@ void App::ShowTileMapWindow()
 		pTileScene->GetMapDef().tiles.size());
 
 	ImGui::Separator();
-	ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Load Tile Map from JSON");
+	ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Load Tile Map from .iam");
 
 	static char tileMapPath[MAX_PATH] = "";
 	ImGui::InputText("Map File", tileMapPath, MAX_PATH);
@@ -490,8 +482,8 @@ void App::ShowTileMapWindow()
 		ofn.hwndOwner = nullptr;
 		ofn.lpstrFile = buf.data();
 		ofn.nMaxFile = (DWORD)buf.size();
-		ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
-		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+		ofn.lpstrFilter = "iam Files\0*.iam\0All Files\0*.*\0";
+		ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
 		if (GetOpenFileNameA(&ofn))
 		{
 			strncpy_s(tileMapPath, buf.data(), MAX_PATH);
@@ -502,7 +494,25 @@ void App::ShowTileMapWindow()
 	{
 		try
 		{
-			auto def = TileMapDef::LoadFromJSON(tileMapPath);
+			auto iamResult = LoadIamMap(tileMapPath);
+			auto mapjson = BuildMapJson(iamResult.pap_hi, iamResult.texture_set);
+
+			std::filesystem::path path(tileMapPath);
+
+			std::string jsonMapFilename = path.stem().string() + ".json";
+
+			SaveIamToJson(mapjson, jsonMapFilename);
+
+			/*std::string testMapPath = "UC-data\\maps\\bball2.iam";
+			std::vector<PAP_Hi> tiles = LoadPAPFromIamMap(testMapPath);
+			auto iamResult = LoadIamMap(testMapPath);
+
+
+			auto mapjson = BuildMapJson(iamResult.pap_hi);
+
+			SaveIamToJson(mapjson, "bball2_map.json");*/
+
+			auto def = TileMapDef::LoadFromJSON(jsonMapFilename);
 			pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
 			pTileScene->LinkTechniques(*pUnlitRg);
 		}
@@ -634,6 +644,11 @@ void App::PerformPicking()
 	if (pTileScene && pTileScene->GetDynamicModel())
 	{
 		testModel(*pTileScene->GetDynamicModel());
+	}
+
+	for (auto& prim : primPreview)
+	{
+		
 	}
 
 	// Build single-triangle indicator for the picked face
