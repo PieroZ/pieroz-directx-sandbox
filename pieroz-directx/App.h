@@ -49,6 +49,7 @@ private:
 	void ShowExportWindow();
 	void ShowNprimImportWindow();
 	void ShowTileMapWindow();
+	void DrawDebugOverlay();
 
 	// Helper to get active render graph
 	Rgph::RenderGraph& GetRenderGraph() noexcept;
@@ -105,4 +106,5 @@ private:
 
 	bool savingDepth = false;
 	bool showImguiDebugWindows = false;
+	bool showDebugOverlay = false;
 };

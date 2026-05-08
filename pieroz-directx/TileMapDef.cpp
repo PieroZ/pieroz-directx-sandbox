@@ -32,6 +32,24 @@ TileMapDef TileMapDef::LoadFromJSON(const std::string& path)
 		tile.flip = tileJson.value("flip", 0);
 		def.tiles.push_back(std::move(tile));
 	}
+
+	// Parse prim placements if present
+	if (j.contains("prims"))
+	{
+		for (const auto& primJson : j.at("prims"))
+		{
+			PrimPlacementDef prim;
+			prim.primIndex = primJson.at("prim").get<int>();
+			prim.x = primJson.at("x").get<int>();
+			prim.y = primJson.at("y").get<int>();
+			prim.z = primJson.at("z").get<int>();
+			prim.yaw = primJson.value("yaw", 0);
+			prim.flags = primJson.value("flags", 0);
+			prim.insideIndex = primJson.value("InsideIndex", 0);
+			def.prims.push_back(std::move(prim));
+		}
+	}
+
 	return def;
 }
 

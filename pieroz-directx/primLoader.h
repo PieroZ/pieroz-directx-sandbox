@@ -14,5 +14,4 @@ struct PrimLoadResult
 	std::vector<PrimFace4> faces4;
 };
 
-
-PrimLoadResult LoadPrimObject(const std::string& filePath);
+PrimLoadResult LoadPrimObject(const std::string& nprimFilePath, const std::string& primFilePath = "");

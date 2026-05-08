@@ -14,6 +14,18 @@ struct TileDef
 	int flip = 0;
 };
 
+// definitino of a prim placed on the map ( from OB_Ob).
+struct PrimPlacementDef
+{
+	int primIndex = 0;
+	int x = 0;
+	int y = 0;
+	int z = 0;
+	int yaw = 0;
+	int flags = 0;
+	int insideIndex = 0;
+};
+
 // Definition of the entire tile map.
 struct TileMapDef
 {
@@ -21,6 +33,7 @@ struct TileMapDef
 	float originX = 0.0f;			// world-space X of tile (0,0) center
 	float originZ = 0.0f;			// world-space Z of tile (0,0) center
 	std::vector<TileDef> tiles;
+	std::vector<PrimPlacementDef> prims;
 
 	// Load from JSON file. Format:
 	/*{

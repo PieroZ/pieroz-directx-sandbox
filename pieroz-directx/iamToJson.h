@@ -1,5 +1,6 @@
 #pragma once
 #include "Pap.h"
+#include "iam.h"
 #include "json.hpp"
 #include "TextureIdToFilenameHelper.h"
 #include <vector>
@@ -52,6 +53,52 @@ json BuildMapJson(const std::vector<PAP_Hi>& tiles, int worldNo)
             j["tiles"].push_back(tile);
         }
     }
+
+    return j;
+}
+
+json BuildMapJson(const iam& iamData)
+{
+    json j = BuildMapJson(iamData.pap_hi, iamData.texture_set);
+
+    // Add OB_Ob prim objects
+    j["prims"] = json::array();
+    for (size_t i = 0; i < iamData.OB_mapwho.size(); ++i)
+    {
+        if (iamData.OB_mapwho[i].index != 0)
+        {
+            int index = iamData.OB_mapwho[i].index;
+            const auto& ob = iamData.OB_ob[index];
+            if (ob.prim == 0 && ob.x == 0 && ob.z == 0)
+                continue; // skip empty entries
+
+            json primJson;
+            primJson["prim"] = ob.prim;
+            primJson["x"] = (i%32) * 4;
+            primJson["y"] = ob.y;
+            primJson["z"] = (i/32) * 4;
+            primJson["yaw"] = ob.yaw;
+            primJson["flags"] = ob.flags;
+            primJson["InsideIndex"] = ob.InsideIndex;
+            j["prims"].push_back(primJson);
+        }
+    }
+    //for (size_t i = 0; i < iamData.OB_ob.size(); ++i)
+    //{
+    //    const auto& ob = iamData.OB_ob[i];
+    //    if (ob.prim == 0 && ob.x == 0 && ob.z == 0)
+    //        continue; // skip empty entries
+
+    //    json primJson;
+    //    primJson["prim"] = ob.prim;
+    //    primJson["x"] = ob.x;
+    //    primJson["y"] = ob.y;
+    //    primJson["z"] = ob.z;
+    //    primJson["yaw"] = ob.yaw;
+    //    primJson["flags"] = ob.flags;
+    //    primJson["InsideIndex"] = ob.InsideIndex;
+    //    j["prims"].push_back(primJson);
+    //}
 
     return j;
 }

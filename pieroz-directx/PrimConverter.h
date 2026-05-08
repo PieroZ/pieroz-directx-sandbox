@@ -18,3 +18,6 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
 // Build the texture file path for a given texture image number.
 // Currently hardcoded to Urban Chaos prim textures location.
 std::string GetPrimTexturePath(int textureImgNo);
+
+// Build the .prm file path for a given prim index.
+std::pair<std::string, std::string> GetPrimFilePaths(int primIndex);

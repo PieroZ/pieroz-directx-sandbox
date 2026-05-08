@@ -3,11 +3,24 @@
 #include <stdexcept>
 #include <filesystem>
 
-PrimLoadResult LoadPrimObject(const std::string& filePath)
+PrimLoadResult LoadPrimObject(const std::string& nprimFilePath, const std::string& primFilePath)
 {
-	std::ifstream file(filePath, std::ios::binary);
+    std::string filePath = nprimFilePath;
+
+	std::ifstream file(nprimFilePath, std::ios::binary);
+
     if (!file)
-        throw std::runtime_error("Unable to open file" + filePath);
+    {
+        filePath = primFilePath;
+
+        file.open(primFilePath, std::ios::binary);
+
+        if (!file)
+        {
+            throw std::runtime_error("Unable to open file: " + filePath);
+        }
+    }
+
 
     PrimLoadResult result;
 

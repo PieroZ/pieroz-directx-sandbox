@@ -179,3 +179,19 @@ std::string GetPrimTexturePath(int textureImgNo)
 		<< "hi.tga";
 	return oss.str();
 }
+
+
+std::pair<std::string, std::string> GetPrimFilePaths(int primIndex)
+{
+	std::ostringstream nprim;
+	nprim << "C:/Games/Urban Chaos/server/prims/nprim"
+		<< std::setw(3) << std::setfill('0') << primIndex
+		<< ".prm";
+
+	std::ostringstream prim;
+	prim << "C:/Games/Urban Chaos/server/prims/prim"
+		<< std::setw(3) << std::setfill('0') << primIndex
+		<< ".prm";
+
+	return { nprim.str(), prim.str() };
+}

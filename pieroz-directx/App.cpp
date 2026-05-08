@@ -445,9 +445,15 @@ void App::DoFrameTileMap(float dt)
 
 		ImGui::TextColored({ 1.0f, 1.0f, 0.0f, 1.0f }, "Tiles %zu | Draw calls: %zu",
 			submittedTiles, pTileScene->GetBatchCount());
+		ImGui::Checkbox("Debug Overlay", &showDebugOverlay);
 		ImGui::End();
 	}
 
+
+	if (showDebugOverlay)
+	{
+		DrawDebugOverlay();
+	}
 
 	ShowNprimImportWindow();
 	ShowTileMapWindow();
@@ -495,26 +501,52 @@ void App::ShowTileMapWindow()
 		try
 		{
 			auto iamResult = LoadIamMap(tileMapPath);
-			auto mapjson = BuildMapJson(iamResult.pap_hi, iamResult.texture_set);
+			auto mapjson = BuildMapJson(iamResult);
 
 			std::filesystem::path path(tileMapPath);
 
 			std::string jsonMapFilename = path.stem().string() + ".json";
 
 			SaveIamToJson(mapjson, jsonMapFilename);
-
-			/*std::string testMapPath = "UC-data\\maps\\bball2.iam";
-			std::vector<PAP_Hi> tiles = LoadPAPFromIamMap(testMapPath);
-			auto iamResult = LoadIamMap(testMapPath);
-
-
-			auto mapjson = BuildMapJson(iamResult.pap_hi);
-
-			SaveIamToJson(mapjson, "bball2_map.json");*/
-
 			auto def = TileMapDef::LoadFromJSON(jsonMapFilename);
 			pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
 			pTileScene->LinkTechniques(*pUnlitRg);
+
+			// Load and place prim objects from map
+			primPlaced.clear();
+			for (const auto& primDef : def.prims)
+			{
+				try
+				{
+					auto [nprimPath, primPath] = GetPrimFilePaths(primDef.primIndex);
+					auto primResult = LoadPrimObject(nprimPath, primPath);
+					auto texturedLists = ConvertPrimToTexturedTriangleList(primResult);
+
+					std::vector<std::unique_ptr<PrimDrawable>> group;
+					for (auto& [texImgNo, triList] : texturedLists)
+					{
+						std::string texPath = GetPrimTexturePath(texImgNo);
+						auto pd = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(triList), texPath);
+						pd->LinkTechniques(*pUnlitRg);
+
+						// Position: x and z are grid coords, y is height
+						float worldX = static_cast<float>(primDef.x);
+						float worldY = static_cast<float>(primDef.y) / 256.0f;
+						float worldZ = static_cast<float>(primDef.z);
+						pd->SetPosition(worldX, worldY, worldZ);
+
+						group.push_back(std::move(pd));
+					}
+					if (!group.empty())
+					{
+						primPlaced.push_back(std::move(group));
+					}
+				}
+				catch (const std::exception&)
+				{
+					// Skipp prims that fail to load
+				}
+			}
 		}
 		catch (const std::exception& e)
 		{
@@ -994,6 +1026,85 @@ void App::ShowNprimImportWindow()
 	}
 
 	ImGui::End();
+}
+
+
+void App::DrawDebugOverlay()
+{
+	const int vpWidth = (int)wnd.Gfx().GetWidth();
+	const int vpHeight = (int)wnd.Gfx().GetHeight();
+	const auto viewMatrix = cameras->GetMatrix();
+	const auto projMatrix = cameras->GetProjection();
+	const auto viewProj = dx::XMMatrixMultiply(viewMatrix, projMatrix);
+
+	auto* drawList = ImGui::GetOverlayDrawList();
+
+	// Project a 3D world position to screen coordinates.
+	// Return false if the point is behind the camera.
+	auto WorldToScreen = [&](const dx::XMFLOAT3& worldPos, ImVec2& screenOut) -> bool
+		{
+			auto pos = dx::XMVector3TransformCoord(dx::XMLoadFloat3(&worldPos), viewProj);
+			dx::XMFLOAT4 clip;
+			dx::XMStoreFloat4(&clip, pos);
+			// Behind camera check
+			auto posView = dx::XMVector3TransformCoord(dx::XMLoadFloat3(&worldPos), viewMatrix);
+			dx::XMFLOAT3 viewCoord;
+			dx::XMStoreFloat3(&viewCoord, posView);
+			if (viewCoord.z < 0.0f)
+			{
+				return false;
+			}
+
+			screenOut.x = (clip.x * 0.5f + 0.5f) * vpWidth;
+			screenOut.y = (-clip.y * 0.5f + 0.5f) * vpHeight;
+			return true;
+		};
+
+	// -- Draw world origin axes ---
+	constexpr float axisLen = 5.0f;
+	const dx::XMFLOAT3 origin = { 0.0f, 0.0f, 0.0f };
+	const dx::XMFLOAT3 axisEndX = { axisLen, 0.0f, 0.0f };
+	const dx::XMFLOAT3 axisEndY = { 0.0f, axisLen, 0.0f };
+	const dx::XMFLOAT3 axisEndZ = { 0.0f, 0.0f, axisLen };
+
+	ImVec2 screenOrigin, screenX, screenY, screenZ;
+	if (WorldToScreen(origin, screenOrigin))
+	{
+		if (WorldToScreen(axisEndX, screenX))
+		{
+			drawList->AddLine(screenOrigin, screenX, IM_COL32(255, 50, 50, 255), 3.0f);
+			drawList->AddText(screenX, IM_COL32(255, 50, 50, 255), "X");
+		}
+		if (WorldToScreen(axisEndY, screenY))
+		{
+			drawList->AddLine(screenOrigin, screenY, IM_COL32(20, 255, 50, 255), 3.0f);
+			drawList->AddText(screenY, IM_COL32(50, 255, 50, 255), "Y");
+		}
+		if (WorldToScreen(axisEndZ, screenZ))
+		{
+			drawList->AddLine(screenOrigin, screenZ, IM_COL32(50, 50, 255, 255), 3.0f);
+			drawList->AddText(screenZ, IM_COL32(50, 50, 255, 255), "Z");
+		}
+	}
+
+	// -- Draw coordinate labels for placeed prims ---
+	for(size_t gi =0; gi< primPlaced.size(); ++gi)
+	{
+		if (primPlaced[gi].empty())
+			continue;
+
+		// Use position of first drawable in the group as representative
+		const auto pos = primPlaced[gi][0]->GetPosition();
+		ImVec2 screenPos;
+		if (WorldToScreen(pos, screenPos))
+		{
+			char buf[64];
+			snprintf(buf, sizeof(buf), "[%zu] (%.1f, %.1f, %.1f)", gi, pos.x, pos.y, pos.z);
+			drawList->AddText({ screenPos.x + 5.0f, screenPos.y - 10.f },
+				IM_COL32(255, 255, 100, 220), buf);
+			drawList->AddCircleFilled(screenPos, 4.0f, IM_COL32(255, 255, 0, 200));
+		}
+	}
 }
 
 
