@@ -74,9 +74,9 @@ json BuildMapJson(const iam& iamData)
 
             json primJson;
             primJson["prim"] = ob.prim;
-            primJson["x"] = (i%32) * 4;
+            primJson["z"] = (i/32) * 4 + ob.x / 64.0f;
             primJson["y"] = ob.y;
-            primJson["z"] = (i/32) * 4;
+            primJson["x"] = (i%32) * 4 + ob.z / 64.0f;
             primJson["yaw"] = ob.yaw;
             primJson["flags"] = ob.flags;
             primJson["InsideIndex"] = ob.InsideIndex;

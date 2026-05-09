@@ -267,3 +267,6 @@ __pycache__/
 # Images
 *.png
 *.tga
+
+# UC data
+*.prm
