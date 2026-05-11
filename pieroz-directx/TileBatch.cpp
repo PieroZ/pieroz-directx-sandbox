@@ -43,14 +43,14 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 		};
 
 		// Apply flip first ( bit 0 = horizontal flip, bit 1 = vertical flip)
-		if (flip & 0x1)
-		{
-			for (auto& uv : uvs) uv.x = 1.0f - uv.x;
-		}
-		if (flip & 0x2)
-		{
-			for (auto& uv : uvs) uv.y = 1.0f - uv.y;
-		}
+		//if (flip & 0x1)
+		//{
+		//	for (auto& uv : uvs) uv.x = 1.0f - uv.x;
+		//}
+		//if (flip & 0x2)
+		//{
+		//	for (auto& uv : uvs) uv.y = 1.0f - uv.y;
+		//}
 
 		// Apply rotation (rotate UV indices clock2wise by rot * 90)
 		// Rotating UVs means shifting which UV goes to which vertex

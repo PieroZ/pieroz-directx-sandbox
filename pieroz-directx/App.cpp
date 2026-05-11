@@ -154,6 +154,11 @@ void App::HandleInput( float dt )
 
 	if( !wnd.CursorEnabled() )
 	{
+		if (wnd.kbd.KeyIsPressed(VK_SHIFT))
+		{
+			dt *= 5.0f;
+		}
+
 		if( wnd.kbd.KeyIsPressed( 'W' ) )
 		{
 			cameras->Translate( { 0.0f,0.0f,dt } );
@@ -496,6 +501,8 @@ void App::ShowTileMapWindow()
 		}
 	}
 	ImGui::SameLine();
+	//if(ImGui::Button("Load Json"))
+
 	if(ImGui::Button("Load Map"))
 	{
 		try
@@ -531,9 +538,16 @@ void App::ShowTileMapWindow()
 
 						// Position: x and z are grid coords, y is height
 						float worldX = static_cast<float>(primDef.x);
-						float worldY = static_cast<float>(primDef.y) / 256.0f;
+						//float worldY = static_cast<float>(primDef.y) / 256.0f;
+						float worldY = 0;
 						float worldZ = static_cast<float>(primDef.z);
-						pd->SetPosition(worldX, worldY, worldZ);
+						//float radians = to_rad<float>((float)primDef.yaw);
+						//float radians = static_cast<float>(primDef.yaw) * (2.0 * PI / 2048.0F);
+						float degrees = static_cast<float>(primDef.yaw) * 360.0f / 256.0f;
+						float radians = static_cast<float>(primDef.yaw) * 2.0f * PI / 256.0f + PI / 2;
+
+						pd->SetPosition(worldZ, worldY, worldX);
+						pd->SetYaw(radians);
 
 						group.push_back(std::move(pd));
 					}

@@ -117,8 +117,8 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
 		}
 
 		builder.indices.push_back(baseIdx + 0);
-		builder.indices.push_back(baseIdx + 2);
 		builder.indices.push_back(baseIdx + 1);
+		builder.indices.push_back(baseIdx + 2);
 	}
 
 	// Process PrimFace4 ( quads -> 2 triangles each)
@@ -149,12 +149,12 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
 		}
 		// Triangle 1: (0,3,1)
 		builder.indices.push_back(baseIdx + 0);
-		builder.indices.push_back(baseIdx + 3);
 		builder.indices.push_back(baseIdx + 1);
+		builder.indices.push_back(baseIdx + 3);
 		// Triangle 2: (0,2,3)
 		builder.indices.push_back(baseIdx + 0);
-		builder.indices.push_back(baseIdx + 2);
 		builder.indices.push_back(baseIdx + 3);
+		builder.indices.push_back(baseIdx + 2);
 	}
 
 

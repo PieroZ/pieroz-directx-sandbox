@@ -15,7 +15,9 @@ public:
 	DirectX::XMMATRIX GetTransformXM() const noexcept override;
 	void SetPosition(const DirectX::XMFLOAT3& pos) noexcept;
 	void SetPosition(float x, float y, float z) noexcept;
+	void SetYaw(float y) noexcept;
 	DirectX::XMFLOAT3 GetPosition() const noexcept { return position; }
 private:
 	DirectX::XMFLOAT3 position = { 0.0f, 0.0f, 0.0f };
+	float yaw = 0.0f;
 };

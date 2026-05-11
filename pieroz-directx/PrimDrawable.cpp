@@ -40,7 +40,9 @@ PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std
 
 DirectX::XMMATRIX PrimDrawable::GetTransformXM() const noexcept
 {
-	return DirectX::XMMatrixTranslation(position.x, position.y, position.z);
+	return         
+		DirectX::XMMatrixRotationY(yaw) *
+		DirectX::XMMatrixTranslation(position.x, position.y, position.z);
 }
 
 void PrimDrawable::SetPosition(const DirectX::XMFLOAT3& pos) noexcept
@@ -51,4 +53,9 @@ void PrimDrawable::SetPosition(const DirectX::XMFLOAT3& pos) noexcept
 void PrimDrawable::SetPosition(float x, float y, float z) noexcept
 {
 	this->position = { x, y, z };
+}
+
+void PrimDrawable::SetYaw(float y) noexcept
+{
+	yaw = y;
 }

@@ -62,25 +62,30 @@ json BuildMapJson(const iam& iamData)
     json j = BuildMapJson(iamData.pap_hi, iamData.texture_set);
 
     // Add OB_Ob prim objects
+    int id = 0;
     j["prims"] = json::array();
     for (size_t i = 0; i < iamData.OB_mapwho.size(); ++i)
     {
         if (iamData.OB_mapwho[i].index != 0)
         {
-            int index = iamData.OB_mapwho[i].index;
-            const auto& ob = iamData.OB_ob[index];
-            if (ob.prim == 0 && ob.x == 0 && ob.z == 0)
-                continue; // skip empty entries
+            for (int kk = 0; kk < iamData.OB_mapwho[i].num; kk++)
+            {
+                int index = iamData.OB_mapwho[i].index + kk;
+                const auto& ob = iamData.OB_ob[index];
+                if (ob.prim == 0 && ob.x == 0 && ob.z == 0)
+                    continue; // skip empty entries
 
-            json primJson;
-            primJson["prim"] = ob.prim;
-            primJson["z"] = (i/32) * 4 + ob.x / 64.0f;
-            primJson["y"] = ob.y;
-            primJson["x"] = (i%32) * 4 + ob.z / 64.0f;
-            primJson["yaw"] = ob.yaw;
-            primJson["flags"] = ob.flags;
-            primJson["InsideIndex"] = ob.InsideIndex;
-            j["prims"].push_back(primJson);
+                json primJson;
+                primJson["id"] = id++;
+                primJson["prim"] = ob.prim;
+                primJson["x"] = (i / 32) * 4 + ob.x / 64.0f;
+                primJson["y"] = ob.y;
+                primJson["z"] = (i % 32) * 4 + ob.z / 64.0f;
+                primJson["yaw"] = ob.yaw;
+                primJson["flags"] = ob.flags;
+                primJson["InsideIndex"] = ob.InsideIndex;
+                j["prims"].push_back(primJson);
+            }
         }
     }
     //for (size_t i = 0; i < iamData.OB_ob.size(); ++i)
