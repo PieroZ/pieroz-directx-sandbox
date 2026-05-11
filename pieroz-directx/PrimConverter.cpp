@@ -71,9 +71,9 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
 			const auto& p = prim.points[idx];
 
 			return {
-				static_cast<float>(p.X) * scale,
-				static_cast<float>(p.Y) * scale,
 				static_cast<float>(p.Z) * scale,
+				static_cast<float>(p.Y) * scale,
+				static_cast<float>(p.X) * scale,
 			};
 		};
 

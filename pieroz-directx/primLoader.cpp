@@ -77,11 +77,11 @@ PrimLoadResult LoadPrimObject(const std::string& nprimFilePath, const std::strin
         }
     }
 
-    // Negate X axis
-    for (auto& point : result.points)
-    {
-        point.X = -point.X;
-    }
+    //// Negate X axis
+    //for (auto& point : result.points)
+    //{
+    //    point.X = -point.X;
+    //}
 
 	const int numFaces3 = result.object.EndFace3 - result.object.StartFace3;
     if (numFaces3 > 0)

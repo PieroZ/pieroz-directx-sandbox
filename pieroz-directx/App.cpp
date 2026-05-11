@@ -544,7 +544,7 @@ void App::ShowTileMapWindow()
 						//float radians = to_rad<float>((float)primDef.yaw);
 						//float radians = static_cast<float>(primDef.yaw) * (2.0 * PI / 2048.0F);
 						float degrees = static_cast<float>(primDef.yaw) * 360.0f / 256.0f;
-						float radians = static_cast<float>(primDef.yaw) * 2.0f * PI / 256.0f + PI / 2;
+						float radians = -static_cast<float>(primDef.yaw) * 2.0f * PI / 256.0f;
 
 						pd->SetPosition(worldZ, worldY, worldX);
 						pd->SetYaw(radians);
