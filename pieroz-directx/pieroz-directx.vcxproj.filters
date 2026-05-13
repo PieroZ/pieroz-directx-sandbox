@@ -363,6 +363,9 @@
     <ClCompile Include="PrimDrawable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="WallBatch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowsMessageMap.h">
@@ -772,6 +775,9 @@
     </ClInclude>
     <ClInclude Include="iam.h">
       <Filter>Header Files\UC-Formats</Filter>
+    </ClInclude>
+    <ClInclude Include="WallBatch.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

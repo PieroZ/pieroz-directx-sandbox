@@ -43,7 +43,7 @@ json BuildMapJson(const std::vector<PAP_Hi>& tiles, int worldNo)
             json tile;
             tile["col"] = col;
             tile["row"] = row;
-            tile["height"] = static_cast<float>(t.Height);
+            tile["height"] = static_cast<float>(t.Height / 8.0f);
 
             tile["texture"] = paths.res64;
             tile["rotation"] = trot;
@@ -78,9 +78,11 @@ json BuildMapJson(const iam& iamData)
                 json primJson;
                 primJson["id"] = id++;
                 primJson["prim"] = ob.prim;
-                primJson["x"] = (i / 32) * 4 + ob.x / 64.0f;
-                primJson["y"] = ob.y;
-                primJson["z"] = (i % 32) * 4 + ob.z / 64.0f;
+                primJson["x"] = (i / 32) * 4;
+                primJson["y"] = ob.y / 512.f + 0.5f;          
+                primJson["z"] = (i % 32) * 4;
+                primJson["xOffset"] = (ob.x / 64.0f) - 0.5f;
+                primJson["zOffset"] = (ob.z / 64.0f) - 0.5f;
                 primJson["yaw"] = ob.yaw;
                 primJson["flags"] = ob.flags;
                 primJson["InsideIndex"] = ob.InsideIndex;

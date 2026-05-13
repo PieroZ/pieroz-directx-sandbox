@@ -19,11 +19,13 @@ struct PrimPlacementDef
 {
 	int primIndex = 0;
 	int x = 0;
-	int y = 0;
+	float y = 0;
 	int z = 0;
 	int yaw = 0;
 	int flags = 0;
 	int insideIndex = 0;
+	float xOffset = 0;
+	float zOffset = 0;
 };
 
 // Definition of the entire tile map.

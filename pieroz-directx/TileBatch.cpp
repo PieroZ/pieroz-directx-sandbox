@@ -96,7 +96,7 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
 		step.AddBindable(Sampler::Resolve(gfx));
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
-		step.AddBindable(Rasterizer::Resolve(gfx, false)); // no backface culling
+		step.AddBindable(Rasterizer::Resolve(gfx, false, false, 1000, 1.0f)); // no backface culling
 
 		unlit.AddStep(std::move(step));
 		AddTechnique(std::move(unlit));

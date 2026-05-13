@@ -307,6 +307,7 @@
     <ClCompile Include="VertexBuffer.cpp" />
     <ClCompile Include="VertexShader.cpp" />
     <ClCompile Include="VerticalBlurPass.cpp" />
+    <ClCompile Include="WallBatch.cpp" />
     <ClCompile Include="Window.cpp" />
     <ClCompile Include="WindowsMessageMap.cpp" />
     <ClCompile Include="WinMain.cpp" />
@@ -471,6 +472,7 @@
     <ClInclude Include="VertexShader.h" />
     <ClInclude Include="VerticalBlurPass.h" />
     <ClInclude Include="Viewport.h" />
+    <ClInclude Include="WallBatch.h" />
     <ClInclude Include="Window.h" />
     <ClInclude Include="WindowsMessageMap.h" />
     <ClInclude Include="WindowsThrowMacros.h" />

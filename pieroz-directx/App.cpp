@@ -20,6 +20,7 @@
 #include "iamToJson.h"
 #include "primLoader.h"
 #include "PrimConverter.h"
+#include "WallBatch.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -361,6 +362,11 @@ void App::DoFrameTileMap(float dt)
 		}
 	}
 
+	// Submit wall geometry
+	if (pWallBatch && pWallBatch->GetWallCount() > 0)
+	{
+		pWallBatch->Submit(Chan::main);
+	}
 
 
 	// Update and submit prim preview (follows cursor)
@@ -519,6 +525,19 @@ void App::ShowTileMapWindow()
 			pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
 			pTileScene->LinkTechniques(*pUnlitRg);
 
+			// Build wall geometry from DFacets
+			if (iamResult.next_dfacet > 1)
+			{
+				pWallBatch = std::make_unique<WallBatch>(
+					wnd.Gfx(),
+					iamResult.dfacets,
+					"Images\\brickwall.jpg",
+					1.0f, // gridScale: 1 world unit per grid cell
+					1.0f / 8.0f // yScale: convert Y/Height to world units
+				);
+				pWallBatch->LinkTechniques(*pUnlitRg);
+			}
+
 			// Load and place prim objects from map
 			primPlaced.clear();
 			for (const auto& primDef : def.prims)
@@ -537,10 +556,10 @@ void App::ShowTileMapWindow()
 						pd->LinkTechniques(*pUnlitRg);
 
 						// Position: x and z are grid coords, y is height
-						float worldX = static_cast<float>(primDef.x);
-						//float worldY = static_cast<float>(primDef.y) / 256.0f;
-						float worldY = 0;
-						float worldZ = static_cast<float>(primDef.z);
+						float worldX = static_cast<float>(primDef.x) + primDef.xOffset;// -primDef.zOffset;
+						float worldY = static_cast<float>(primDef.y);
+						//float worldY = 0;
+						float worldZ = static_cast<float>(primDef.z) + primDef.zOffset;// -primDef.xOffset;
 						//float radians = to_rad<float>((float)primDef.yaw);
 						//float radians = static_cast<float>(primDef.yaw) * (2.0 * PI / 2048.0F);
 						float degrees = static_cast<float>(primDef.yaw) * 360.0f / 256.0f;

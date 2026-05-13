@@ -41,8 +41,10 @@ TileMapDef TileMapDef::LoadFromJSON(const std::string& path)
 			PrimPlacementDef prim;
 			prim.primIndex = primJson.at("prim").get<int>();
 			prim.x = primJson.at("x").get<int>();
-			prim.y = primJson.at("y").get<int>();
+			prim.y = primJson.value("y", 0.0f);
 			prim.z = primJson.at("z").get<int>();
+			prim.xOffset = primJson.value("xOffset", 0.0f);
+			prim.zOffset = primJson.value("zOffset", 0.0f);
 			prim.yaw = primJson.value("yaw", 0);
 			prim.flags = primJson.value("flags", 0);
 			prim.insideIndex = primJson.value("InsideIndex", 0);
