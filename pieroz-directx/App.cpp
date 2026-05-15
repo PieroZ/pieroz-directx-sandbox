@@ -21,6 +21,7 @@
 #include "primLoader.h"
 #include "PrimConverter.h"
 #include "WallBatch.h"
+#include "tmaLoader.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -516,6 +517,8 @@ void App::ShowTileMapWindow()
 			auto iamResult = LoadIamMap(tileMapPath);
 			auto mapjson = BuildMapJson(iamResult);
 
+			tma tma_result = load_texture_styles(0, iamResult.texture_set);
+
 			std::filesystem::path path(tileMapPath);
 
 			std::string jsonMapFilename = path.stem().string() + ".json";
@@ -531,7 +534,9 @@ void App::ShowTileMapWindow()
 				pWallBatch = std::make_unique<WallBatch>(
 					wnd.Gfx(),
 					iamResult.dfacets,
-					"Images\\brickwall.jpg",
+					iamResult.dstyles,
+					tma_result,
+					iamResult.texture_set,
 					1.0f, // gridScale: 1 world unit per grid cell
 					1.0f / 8.0f // yScale: convert Y/Height to world units
 				);
@@ -557,7 +562,7 @@ void App::ShowTileMapWindow()
 
 						// Position: x and z are grid coords, y is height
 						float worldX = static_cast<float>(primDef.x) + primDef.xOffset;// -primDef.zOffset;
-						float worldY = static_cast<float>(primDef.y);
+						float worldY = primDef.y;
 						//float worldY = 0;
 						float worldZ = static_cast<float>(primDef.z) + primDef.zOffset;// -primDef.xOffset;
 						//float radians = to_rad<float>((float)primDef.yaw);

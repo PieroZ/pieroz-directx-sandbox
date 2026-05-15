@@ -779,6 +779,15 @@
     <ClInclude Include="WallBatch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="building.h">
+      <Filter>Header Files\UC-Formats</Filter>
+    </ClInclude>
+    <ClInclude Include="tmaLoader.h">
+      <Filter>Header Files\UC-utils</Filter>
+    </ClInclude>
+    <ClInclude Include="tma.h">
+      <Filter>Header Files\UC-Formats</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="pieroz-directx.rc">

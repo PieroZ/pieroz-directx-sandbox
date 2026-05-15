@@ -79,7 +79,7 @@ json BuildMapJson(const iam& iamData)
                 primJson["id"] = id++;
                 primJson["prim"] = ob.prim;
                 primJson["x"] = (i / 32) * 4;
-                primJson["y"] = ob.y / 512.f + 0.5f;          
+                primJson["y"] = ob.y / 512.f + (ob.y % 256) / 512.f ;
                 primJson["z"] = (i % 32) * 4;
                 primJson["xOffset"] = (ob.x / 64.0f) - 0.5f;
                 primJson["zOffset"] = (ob.z / 64.0f) - 0.5f;

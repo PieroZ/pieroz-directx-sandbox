@@ -350,6 +350,7 @@
     <ClInclude Include="BlurOutlineRenderGraph.h" />
     <ClInclude Include="BufferClearPass.h" />
     <ClInclude Include="BufferResource.h" />
+    <ClInclude Include="building.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="cnpy.h" />
     <ClInclude Include="CubeTexture.h" />
@@ -460,6 +461,8 @@
     <ClInclude Include="TileBatch.h" />
     <ClInclude Include="TileMapDef.h" />
     <ClInclude Include="TileMapScene.h" />
+    <ClInclude Include="tma.h" />
+    <ClInclude Include="tmaLoader.h" />
     <ClInclude Include="Topology.h" />
     <ClInclude Include="TransformCbuf.h" />
     <ClInclude Include="TransformCbufScaling.h" />
