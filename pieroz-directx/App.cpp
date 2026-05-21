@@ -364,9 +364,12 @@ void App::DoFrameTileMap(float dt)
 	}
 
 	// Submit wall geometry
-	if (pWallBatch && pWallBatch->GetWallCount() > 0)
+	for (auto& wb : wallBatches)
 	{
-		pWallBatch->Submit(Chan::main);
+		if (wb->GetWallCount() > 0)
+		{
+			wb->Submit(Chan::main);
+		}
 	}
 
 
@@ -531,7 +534,7 @@ void App::ShowTileMapWindow()
 			// Build wall geometry from DFacets
 			if (iamResult.next_dfacet > 1)
 			{
-				pWallBatch = std::make_unique<WallBatch>(
+				wallBatches = WallBatch::CreateBatches(
 					wnd.Gfx(),
 					iamResult.dfacets,
 					iamResult.dstyles,
@@ -540,7 +543,8 @@ void App::ShowTileMapWindow()
 					1.0f, // gridScale: 1 world unit per grid cell
 					1.0f / 8.0f // yScale: convert Y/Height to world units
 				);
-				pWallBatch->LinkTechniques(*pUnlitRg);
+				for(auto& wb: wallBatches)
+					wb->LinkTechniques(*pUnlitRg);
 			}
 
 			// Load and place prim objects from map

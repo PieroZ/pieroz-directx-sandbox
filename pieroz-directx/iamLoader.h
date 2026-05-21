@@ -6,7 +6,6 @@
 #include "iam.h"
 #include "Pap.h"
 
-
 std::vector<PAP_Hi> LoadPAPFromIamMap(const std::string& filename)
 {
     constexpr size_t MAP_SIZE = 128 * 128;
@@ -247,6 +246,7 @@ iam LoadIamMap(const std::string& filename)
 
     //if (!file)
     //    throw std::runtime_error("Failed reading data");
+
 
     return iam_result;
 }

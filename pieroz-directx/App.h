@@ -100,8 +100,8 @@ private:
 	float tileModelScale = 1.0f;
 
 
-	// Wall geometry built from DFacets
-	std::unique_ptr<WallBatch> pWallBatch;
+	// Wall geometry built from DFacets ( one batch per texture ) 
+	std::vector<std::unique_ptr<WallBatch>> wallBatches;
 
 	//Prim objects placed in scene
 	std::vector<std::vector<std::unique_ptr<PrimDrawable>>> primPlaced;

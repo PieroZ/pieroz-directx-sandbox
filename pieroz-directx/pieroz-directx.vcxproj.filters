@@ -366,6 +366,9 @@
     <ClCompile Include="WallBatch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TextureIdToFilenameHelper.cpp">
+      <Filter>Source Files\UC-utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowsMessageMap.h">

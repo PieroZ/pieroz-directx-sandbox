@@ -5,6 +5,7 @@
 #include "tma.h"
 #include <string>
 #include <vector>
+#include <memory>
 #include <DirectXMath.h>
 
 namespace Rgph { class RenderGraph;  }
@@ -20,11 +21,21 @@ public:
 	// yScale   - multiplier for Y (signed short) and Height values
 	WallBatch(Graphics& gfx,
 		const std::vector<DFacet>& facets,
+		const std::vector<size_t>& facetIndices,
+		const std::string& texturePath,
+		float gridScale,
+		float yScale);
+
+	// Factory: groups all facets by texture and returns one WallBatch per texture.
+	static std::vector<std::unique_ptr<WallBatch>> CreateBatches(
+		Graphics& gfx,
+		const std::vector<DFacet>& facets,
 		const std::vector<unsigned short>& styles,
 		const tma& tmaData,
 		int worldNo,
 		float gridScale = 1.0f,
 		float yScale = 1.0f / 256.0f);
+
 
 	DirectX::XMMATRIX GetTransformXM() const noexcept override;
 

@@ -292,6 +292,7 @@
     <ClCompile Include="TestPrimLoader.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="TexturedTriangleOverlay.cpp" />
+    <ClCompile Include="TextureIdToFilenameHelper.cpp" />
     <ClCompile Include="TexturePreprocessor.cpp" />
     <ClCompile Include="Tile.cpp" />
     <ClCompile Include="TileBatch.cpp" />

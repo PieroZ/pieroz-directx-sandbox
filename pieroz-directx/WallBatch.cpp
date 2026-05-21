@@ -4,14 +4,14 @@
 #include "Channels.h"
 #include "TextureIdToFilenameHelper.h"
 #include <cmath>
+#include <unordered_map>
 
 namespace dx = DirectX;
 
 WallBatch::WallBatch(Graphics& gfx,
 	const std::vector<DFacet>& facets,
-	const std::vector<unsigned short>& styles,
-	const tma& tmaData,
-	int worldNo,
+	const std::vector<size_t>& facetIndices,
+	const std::string& texturePath,
 	float gridScale,
 	float yScale)
 {
@@ -24,38 +24,9 @@ WallBatch::WallBatch(Graphics& gfx,
 	Dvtx::VertexBuffer vbuf(std::move(layout));
 	std::vector<unsigned short> indices;
 
-	// Skip index 0 ( null entry) - valid facets start at 1
-	for (size_t fi = 1; fi < facets.size(); fi++)
+	for (size_t fi: facetIndices)
 	{
-		std::string texturePath = "Images\\brickwall.jpg";
-
 		const auto& f = facets[fi];
-
-		// Skip facets with zero height (no visible wall)
-		if (f.BlockHeight == 0)
-			continue;
-
-		// Skipp facets type different than STOREY_TYPE_NORMAL
-		if (f.FacetType != 1)
-			continue;
-
-		if (styles[f.StyleIndex])
-		{
-			//auto texRes = get_texture_paths(styles[f.StyleIndex]);
-			int page = tmaData.dx_textures_xy[0][styles[f.StyleIndex]].Page;
-
-			auto paths = get_texture_paths(
-				page,
-				"UC-data/textures/world" + std::to_string(worldNo) + "/",
-				"UC-data/textures/shared/",
-				"UC-data/textures/inside/",
-				"UC-data/textures/people/",
-				"UC-data/textures/prims/",
-				"UC-data/textures/people2/"
-			);
-
-			texturePath = paths.res64;
-		}
 
 		// Convert grid-based byte coorindates to world space
 		const float z0 = static_cast<float>(f.x[0] - 0.5f) * gridScale;
@@ -66,11 +37,11 @@ WallBatch::WallBatch(Graphics& gfx,
 		const float heightScale = f.Height / 4;
 
 		// Y coordinates (signed short) scaled to world space
-		const float y0_bottom = static_cast<float>(f.Y[0]) * yScale* 1/64.0f;// * heightScale;
-		const float y1_bottom = static_cast<float>(f.Y[1]) * yScale* 1/64.0f;// * heightScale;
+		const float y0_bottom = static_cast<float>(f.Y[0]) * yScale* 1/32.0f;// * heightScale;
+		const float y1_bottom = static_cast<float>(f.Y[1]) * yScale* 1/32.0f;// * heightScale;
 
 		// Top of the wall: base Y minus Height (Y decreases going up in this format)
-		const float height = static_cast<float>(f.BlockHeight) * yScale * 1 / 2.0f * 0.5 * heightScale;// *heightScale;
+		const float height = static_cast<float>(f.BlockHeight) * yScale * 1 / 2.0f * heightScale;// *heightScale;
 		const float y0_top = y0_bottom + height;
 		const float y1_top = y1_bottom + height;
 
@@ -143,4 +114,78 @@ dx::XMMATRIX WallBatch::GetTransformXM() const noexcept
 {
 	// Vertices are already in the world space
 	return dx::XMMatrixIdentity();
+}
+
+ULONG facet_rand(void)
+{
+	static	ULONG	facet_seed = 0x12345678;
+	facet_seed = (facet_seed * 69069) + 1;
+
+	return(facet_seed >> 7);
+}
+
+
+std::vector<std::unique_ptr<WallBatch>> WallBatch::CreateBatches(Graphics& gfx,
+	const std::vector<DFacet>& facets,
+	const std::vector<unsigned short>& styles,
+	const tma& tmaData,
+	int worldNo,
+	float gridScale,
+	float yScale)
+{
+	// Group facet indices by their resolved texture path
+	std::unordered_map<std::string, std::vector<size_t>> textureGroups;
+
+	for (size_t fi = 1; fi < facets.size(); fi++)
+	{
+
+		const auto& f = facets[fi];
+		if (f.BlockHeight == 0)
+			continue;
+		if (f.FacetType != 1)
+			continue;
+
+
+		int texture_piece = facet_rand() & 0x3;
+
+		std::string texturePath = "Images\\brickwall.jpg";
+
+		if (styles[f.StyleIndex])
+		{
+			int page = 0;
+			if (styles[f.StyleIndex] < 200)
+			{
+				page = tmaData.dx_textures_xy[styles[f.StyleIndex]][texture_piece].Page;
+			}
+
+			auto paths = get_texture_paths(
+				page,
+				"UC-data/textures/world" + std::to_string(worldNo) + "/",
+				"UC-data/textures/shared/",
+				"UC-data/textures/inside/",
+				"UC-data/textures/people/",
+				"UC-data/textures/prims/",
+				"UC-data/textures/people2/"
+			);
+
+			texturePath = paths.res64;
+		}
+
+		textureGroups[texturePath].push_back(fi);
+	}
+
+	// Create one WallBatch per texture group
+	std::vector<std::unique_ptr<WallBatch>> batches;
+	batches.reserve(textureGroups.size());
+
+	for (auto& [texPath, indices] : textureGroups)
+	{
+		auto batch = std::make_unique<WallBatch>(gfx, facets, indices, texPath, gridScale, yScale);
+		if (batch->GetWallCount() > 0)
+		{
+			batches.push_back(std::move(batch));
+		}
+	}
+
+	return batches;
 }
