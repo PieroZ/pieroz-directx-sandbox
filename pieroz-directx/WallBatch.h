@@ -10,6 +10,13 @@
 
 namespace Rgph { class RenderGraph;  }
 
+struct WallPiece
+{
+	size_t facetIndex;
+	int tileIndex;
+};
+
+
 // Batched drawable that renders wall geometry generated from DFacet data.
 // Each DFacet produces a vertical quad(2 triangles) between its two base
 // points, extending upward by Height.
@@ -19,18 +26,20 @@ public:
 	// Build wall geometry from range of DFacets.
 	// gridScale - multiplier for grid-based x/z byte coordinates
 	// yScale   - multiplier for Y (signed short) and Height values
-	WallBatch(Graphics& gfx,
+	WallBatch(
+		Graphics& gfx,
 		const std::vector<DFacet>& facets,
-		const std::vector<size_t>& facetIndices,
+		const std::vector<WallPiece>& wallPieces,
 		const std::string& texturePath,
 		float gridScale,
-		float yScale);
+		float yScale
+	);
 
 	// Factory: groups all facets by texture and returns one WallBatch per texture.
 	static std::vector<std::unique_ptr<WallBatch>> CreateBatches(
 		Graphics& gfx,
 		const std::vector<DFacet>& facets,
-		const std::vector<unsigned short>& styles,
+		const std::vector<signed short>& styles,
 		const tma& tmaData,
 		int worldNo,
 		float gridScale = 1.0f,

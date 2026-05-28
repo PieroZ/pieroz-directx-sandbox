@@ -158,7 +158,7 @@ struct iam
 	//
 	std::vector<DBuilding> dbuildings;
 	std::vector<DFacet> dfacets;
-	std::vector<unsigned short> dstyles;
+	std::vector<signed short> dstyles;
 	std::vector<unsigned char> paint_mem;
 	std::vector<DStorey> dstoreys;
 	// save_type >=21

@@ -6,16 +6,18 @@
 #include <cmath>
 #include <unordered_map>
 
+
 namespace dx = DirectX;
 
 WallBatch::WallBatch(Graphics& gfx,
 	const std::vector<DFacet>& facets,
-	const std::vector<size_t>& facetIndices,
+	const std::vector<WallPiece>& wallPieces,
 	const std::string& texturePath,
 	float gridScale,
 	float yScale)
 {
 	using namespace Bind;
+
 	Dvtx::VertexLayout layout;
 	layout.Append(Dvtx::VertexLayout::Position3D);
 	layout.Append(Dvtx::VertexLayout::Normal);
@@ -24,55 +26,78 @@ WallBatch::WallBatch(Graphics& gfx,
 	Dvtx::VertexBuffer vbuf(std::move(layout));
 	std::vector<unsigned short> indices;
 
-	for (size_t fi: facetIndices)
+	for (const auto& piece : wallPieces)
 	{
-		const auto& f = facets[fi];
+		const auto& f = facets[piece.facetIndex];
+		const int tile = piece.tileIndex;
 
-		// Convert grid-based byte coorindates to world space
+		// Convert grid-based byte coordinates to world space
 		const float z0 = static_cast<float>(f.x[0] - 0.5f) * gridScale;
 		const float z1 = static_cast<float>(f.x[1] - 0.5f) * gridScale;
 		const float x0 = static_cast<float>(f.z[0] - 0.5f) * gridScale;
 		const float x1 = static_cast<float>(f.z[1] - 0.5f) * gridScale;
 
-		const float heightScale = f.Height / 4;
+		const float heightScale = f.BlockHeight / 4;
 
-		// Y coordinates (signed short) scaled to world space
-		const float y0_bottom = static_cast<float>(f.Y[0]) * yScale* 1/32.0f;// * heightScale;
-		const float y1_bottom = static_cast<float>(f.Y[1]) * yScale* 1/32.0f;// * heightScale;
+		// Bottom Y
+		const float y0_bottom = static_cast<float>(f.Y[0]) * yScale * 1 / 32.0f;
+		const float y1_bottom = static_cast<float>(f.Y[1]) * yScale * 1 / 32.0f;
 
-		// Top of the wall: base Y minus Height (Y decreases going up in this format)
-		const float height = static_cast<float>(f.BlockHeight) * yScale * 1 / 2.0f * heightScale;// *heightScale;
-		const float y0_top = y0_bottom + height;
-		const float y1_top = y1_bottom + height;
+		// Single tile height
+		const float tileHeight = 4.0f * yScale * 1 / 2.0f * heightScale;
 
+		// Current tile offsets
+		const float tileBottomOffset = static_cast<float>(tile) * tileHeight;
+		const float tileTopOffset = static_cast<float>(tile + 1) * tileHeight;
 
-		// Compute wall normal (outward-facing)
-		// Wall direction vector along the base
+		const float ty0_bottom = y0_bottom + tileBottomOffset;
+		const float ty1_bottom = y1_bottom + tileBottomOffset;
+		const float ty0_top = y0_bottom + tileTopOffset;
+		const float ty1_top = y1_bottom + tileTopOffset;
+
+		// Compute wall normal
 		const float dx_ = x1 - x0;
 		const float dz_ = z1 - z0;
-		// Normal is perpendicular to wall direction in the XZ plane
+
 		const float len = std::sqrt(dx_ * dx_ + dz_ * dz_);
+
 		dx::XMFLOAT3 normal{ 0.0f, 0.0f, 1.0f };
+
 		if (len > 1e-6f)
 		{
 			normal = { -dz_ / len, 0.0f, dx_ / len };
 		}
 
-		// UV mapping: U along the wall length, V along the height
-		const float uLen = len / gridScale; // tile the texture every gridScale units
+		// UV mapping
+		const float uLen = len / gridScale;
 
-		// 4 vertices per wall quad
-		// v0 = bottom-left, v1 =bottom-right, v2 = top-right, v3 = top-left
-		vbuf.EmplaceBack(dx::XMFLOAT3{ x0, y0_bottom, z0 }, normal, dx::XMFLOAT2{ 0.0f, 1.0f });
-		vbuf.EmplaceBack(dx::XMFLOAT3{ x1, y1_bottom, z1 }, normal, dx::XMFLOAT2{ uLen, 1.0f });
-		vbuf.EmplaceBack(dx::XMFLOAT3{ x1, y1_top, z1 }, normal, dx::XMFLOAT2{ uLen, 0.0f });
-		vbuf.EmplaceBack(dx::XMFLOAT3{ x0, y0_top, z0 }, normal, dx::XMFLOAT2{ 0.0f, 0.0f });
+		// Vertices
+		vbuf.EmplaceBack(
+			dx::XMFLOAT3{ x0, ty0_bottom, z0 },
+			normal,
+			dx::XMFLOAT2{ 0.0f, 1.0f });
+
+		vbuf.EmplaceBack(
+			dx::XMFLOAT3{ x1, ty1_bottom, z1 },
+			normal,
+			dx::XMFLOAT2{ uLen, 1.0f });
+
+		vbuf.EmplaceBack(
+			dx::XMFLOAT3{ x1, ty1_top, z1 },
+			normal,
+			dx::XMFLOAT2{ uLen, 0.0f });
+
+		vbuf.EmplaceBack(
+			dx::XMFLOAT3{ x0, ty0_top, z0 },
+			normal,
+			dx::XMFLOAT2{ 0.0f, 0.0f });
 
 		const auto base = static_cast<unsigned short>(wallCount * 4);
-		// Two triangles: ( 1,2,3) and (0,2,3)
+
 		indices.push_back(base + 0);
 		indices.push_back(base + 1);
 		indices.push_back(base + 2);
+
 		indices.push_back(base + 0);
 		indices.push_back(base + 2);
 		indices.push_back(base + 3);
@@ -90,20 +115,24 @@ WallBatch::WallBatch(Graphics& gfx,
 	pIndices = std::make_shared<IndexBuffer>(gfx, tag, indices);
 	pTopology = Topology::Resolve(gfx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// Unlit textured technique (same as TileBatch)
 	{
 		Technique unlit{ "Unlit", Chan::main, true };
 		Step step("lambertian");
 
 		auto pvs = VertexShader::Resolve(gfx, "Unlit_VS.cso");
+
 		step.AddBindable(InputLayout::Resolve(gfx, vbuf.GetLayout(), *pvs));
 		step.AddBindable(std::move(pvs));
+
 		step.AddBindable(PixelShader::Resolve(gfx, "Unlit_PS.cso"));
 
 		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
 		step.AddBindable(Sampler::Resolve(gfx));
+
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
-		step.AddBindable(Rasterizer::Resolve(gfx, true, false, 1000, 1.0f)); // no backface culling - walls visible from both sides
+
+		step.AddBindable(
+			Rasterizer::Resolve(gfx, true, false, 1000, 1.0f));
 
 		unlit.AddStep(std::move(step));
 		AddTechnique(std::move(unlit));
@@ -125,62 +154,85 @@ ULONG facet_rand(void)
 }
 
 
-std::vector<std::unique_ptr<WallBatch>> WallBatch::CreateBatches(Graphics& gfx,
+std::vector<std::unique_ptr<WallBatch>> WallBatch::CreateBatches(
+	Graphics& gfx,
 	const std::vector<DFacet>& facets,
-	const std::vector<unsigned short>& styles,
+	const std::vector<signed short>& styles,
 	const tma& tmaData,
 	int worldNo,
 	float gridScale,
 	float yScale)
 {
-	// Group facet indices by their resolved texture path
-	std::unordered_map<std::string, std::vector<size_t>> textureGroups;
+	std::unordered_map<std::string, std::vector<WallPiece>> textureGroups;
 
 	for (size_t fi = 1; fi < facets.size(); fi++)
 	{
-
 		const auto& f = facets[fi];
+
 		if (f.BlockHeight == 0)
 			continue;
+
 		if (f.FacetType != 1)
 			continue;
 
+		const int tileCount =
+			std::max(1, static_cast<int>(f.Height) / 4);
 
-		int texture_piece = facet_rand() & 0x3;
-
-		std::string texturePath = "Images\\brickwall.jpg";
-
-		if (styles[f.StyleIndex])
+		for (int z = 0; z < tileCount; z++)
 		{
-			int page = 0;
-			if (styles[f.StyleIndex] < 200)
+			int texture_piece = 0;
+
+			std::string texturePath = "Images\\brickwall.jpg";
+
+			const size_t styleIndex = f.StyleIndex + z;
+
+			if (styleIndex < styles.size() && styles[styleIndex])
 			{
-				page = tmaData.dx_textures_xy[styles[f.StyleIndex]][texture_piece].Page;
+				int page = 0;
+				if (styles[styleIndex] < 200 && styles[styleIndex] >= 0)
+
+				{
+					page =
+						tmaData.dx_textures_xy[styles[styleIndex]]
+						[texture_piece]
+						.Page;
+				}
+
+				auto paths = get_texture_paths(
+					page,
+					"UC-data/textures/world" + std::to_string(worldNo) + "/",
+					"UC-data/textures/shared/",
+					"UC-data/textures/inside/",
+					"UC-data/textures/people/",
+					"UC-data/textures/prims/",
+					"UC-data/textures/people2/"
+				);
+
+				texturePath = paths.res64;
 			}
 
-			auto paths = get_texture_paths(
-				page,
-				"UC-data/textures/world" + std::to_string(worldNo) + "/",
-				"UC-data/textures/shared/",
-				"UC-data/textures/inside/",
-				"UC-data/textures/people/",
-				"UC-data/textures/prims/",
-				"UC-data/textures/people2/"
-			);
-
-			texturePath = paths.res64;
+			textureGroups[texturePath].push_back({
+				fi,
+				z
+				});
 		}
-
-		textureGroups[texturePath].push_back(fi);
 	}
 
-	// Create one WallBatch per texture group
 	std::vector<std::unique_ptr<WallBatch>> batches;
+
 	batches.reserve(textureGroups.size());
 
-	for (auto& [texPath, indices] : textureGroups)
+	for (auto& [texPath, pieces] : textureGroups)
 	{
-		auto batch = std::make_unique<WallBatch>(gfx, facets, indices, texPath, gridScale, yScale);
+		auto batch = std::make_unique<WallBatch>(
+			gfx,
+			facets,
+			pieces,
+			texPath,
+			gridScale,
+			yScale
+		);
+
 		if (batch->GetWallCount() > 0)
 		{
 			batches.push_back(std::move(batch));
