@@ -44,6 +44,7 @@ json BuildMapJson(const std::vector<PAP_Hi>& tiles, int worldNo)
             tile["col"] = col;
             tile["row"] = row;
             tile["height"] = static_cast<float>(t.Height / 4.0f);
+            tile["alt"] = static_cast<int>(t.Alt);
 
             tile["texture"] = paths.res64;
             tile["rotation"] = trot;

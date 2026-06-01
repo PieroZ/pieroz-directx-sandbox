@@ -9,6 +9,7 @@ struct TileDef
 	int col = 0;				// grid column (X)
 	int row = 0;				// grid row (Z)
 	float height = 0.0f;		// Y offset (all same for now, extensible)
+	int alt = 0;				// altitude value for slope
 	std::string texturePath;	// path to tile texture
 	int rotation = 0;
 	int flip = 0;

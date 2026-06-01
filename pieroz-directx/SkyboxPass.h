@@ -16,7 +16,10 @@
 #include "IndexBuffer.h"
 #include "Topology.h"
 #include "InputLayout.h"
+#include "PixelShader.h"
+#include "VertexShader.h"
 #include "Sphere.h"
+#include "imgui/imgui.h"
 
 class Graphics;
 
@@ -68,6 +71,8 @@ namespace Rgph
 		}
 		void Execute( Graphics& gfx ) const noxnd override
 		{
+			if (!enabled)
+				return;
 			assert( pMainCamera );
 			UINT indexCount;
 			pMainCamera->BindToGraphics( gfx );
@@ -90,13 +95,33 @@ namespace Rgph
 		{
 			if( ImGui::Begin( "Skybox" ) )
 			{
+				ImGui::Checkbox("Enabled", &enabled);
 				ImGui::Checkbox( "Use sphere",&useSphere );
+				ImGui::Separator();
+				ImGui::Text("Current: %s", currenPath.c_str());
+				static char pathBuf[256] = "Images\\SpaceBox";
+				ImGui::InputText("Path", pathBuf, sizeof(pathBuf));
+				if (ImGui::Button("Load Skybox"))
+				{
+					SetCubeMap(std::string(pathBuf));
+				}
 			}
 			ImGui::End();
 		}
+		void SetEnabled(bool e) noexcept { enabled = e; }
+		bool IsEnabled() const noexcept { return enabled; }
+		void SetCubeMap(const std::string& path)
+		{
+			currenPath = path;
+			pCubeTexture = std::make_shared<Bind::CubeTexture>(*pGfx, path);
+		}
 	private:
+		bool enabled = true;
 		bool useSphere = true;
+		std::string currenPath = "Images\\SpaceBox";
+		Graphics* pGfx = nullptr;
 		const Camera* pMainCamera = nullptr;
+		std::shared_ptr<Bind::CubeTexture> pCubeTexture;
 		std::shared_ptr<Bind::VertexBuffer> pCubeVertices;
 		std::shared_ptr<Bind::IndexBuffer> pCubeIndices;
 		UINT cubeCount;

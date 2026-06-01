@@ -27,6 +27,7 @@ TileMapDef TileMapDef::LoadFromJSON(const std::string& path)
 		tile.col = tileJson.at("col").get<int>();
 		tile.row = tileJson.at("row").get<int>();
 		tile.height = tileJson.value("height", 0.0f);
+		tile.alt = tileJson.value("alt", 0);
 		tile.texturePath = tileJson.at("texture").get<std::string>();
 		tile.rotation = tileJson.value("rotation", 0);
 		tile.flip = tileJson.value("flip", 0);

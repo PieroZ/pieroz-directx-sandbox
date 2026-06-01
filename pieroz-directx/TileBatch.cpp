@@ -33,6 +33,7 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 		const float cz = instances[i].worldZ;
 		const int rot = instances[i].rotation;
 		const int flip = instances[i].flip;
+		//const float altOffset = instances[i].alt / 32.0f;
 
 		// Base UVs: top-left, top-right, bottom-right, bottom-left
 		dx::XMFLOAT2 uvs[4] = {
@@ -52,7 +53,7 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 		//	for (auto& uv : uvs) uv.y = 1.0f - uv.y;
 		//}
 
-		// Apply rotation (rotate UV indices clock2wise by rot * 90)
+		// Apply rotation (rotate UV indices clockwise by rot * 90)
 		// Rotating UVs means shifting which UV goes to which vertex
 		dx::XMFLOAT2 rotatedUvs[4];
 		for (int v = 0; v < 4; v++)
@@ -60,12 +61,78 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 			rotatedUvs[v] = uvs[(v + rot + 1) % 4];
 		}
 
+		//// Vertex positions with altitude slope
+		//// Vertices: 0=(-half, +half) 1 = +half,+half)...
+		//// Alt creates a slope: +Z side is raised by altOffset (ramp going from-Z to +Z)
+		//// The slope direction rotates wit hthe tile rotation
+		//float heights[4]; // per-verrtex Y offsets from alt
+		//if (altOffset != 0.0f)
+		//{
+		//	// Base slope goes from low (-Z) to high (+Z)
+		//	switch ((rot+1)%4)
+		//	{
+		//	case 0: // no rotation, slope along Z
+		//		heights[0] = altOffset; // top-left (-Z)
+		//		heights[1] = altOffset; // top-right (-Z)
+		//		heights[2] = 0.0f; // bottom-right (+Z)
+		//		heights[3] = 0.0f; // bottom-left (+Z)
+		//		break;
+		//	case 1:
+		//		heights[0] = 0.0f; // top-left (-X)
+		//		heights[1] = altOffset; // top-right (+X)
+		//		heights[2] = altOffset; // bottom-right (+X)
+		//		heights[3] = 0.0f; // bottom-left (-X)
+		//		break;
+		//	case 2:
+		//		heights[0] = 0.0f; // top-left (+Z)
+		//		heights[1] = 0.0f; // top-right (+Z)
+		//		heights[2] = altOffset; // bottom-right (-Z)
+		//		heights[3] = altOffset; // bottom-left (-Z)
+		//		break;
+		//	case 3:
+		//		heights[0] = altOffset; // top-left (+X)
+		//		heights[1] = 0.0f; // top-right (-X)
+		//		heights[2] = 0.0f; // bottom-right (-X)
+		//		heights[3] = altOffset; // bottom-left (+X)
+		//		break;
+		//	default:
+		//		heights[0] = 0.0f;
+		//		heights[1] = 0.0f;
+		//		heights[2] = 0.0f;
+		//		heights[3] = 0.0f;
+		//	}
+		//}
+		//else
+		//{
+		//	heights[0] = 0.0f;
+		//	heights[1] = 0.0f;
+		//	heights[2] = 0.0f;
+		//	heights[3] = 0.0f;
+		//}
+
+		//// Compute face normal from the (potentially sloped) quad
+		//dx::XMFLOAT3 v0{ cx - half, cy + heights[0], cz + half };
+		//dx::XMFLOAT3 v1{ cx + half, cy + heights[1], cz + half };
+		//dx::XMFLOAT3 v2{ cx + half, cy + heights[2], cz - half };
+		//dx::XMFLOAT3 v3{ cx - half, cy + heights[3], cz - half };
+
+		dx::XMFLOAT3 v0{ cx - half, cy + instances[i].altCorners[0], cz + half };
+		dx::XMFLOAT3 v1{ cx + half, cy + instances[i].altCorners[1], cz + half };
+		dx::XMFLOAT3 v2{ cx + half, cy + instances[i].altCorners[2], cz - half };
+		dx::XMFLOAT3 v3{ cx - half, cy + instances[i].altCorners[3], cz - half };
+
+		// normalize((v1-v0) x (v3-v0))
+		dx::XMVECTOR edge1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&v1), dx::XMLoadFloat3(&v0));
+		dx::XMVECTOR edge2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&v3), dx::XMLoadFloat3(&v0));
+		dx::XMVECTOR faceNormal = dx::XMVector3Normalize(dx::XMVector3Cross(edge1, edge2));
+		dx::XMFLOAT3 n;
+		dx::XMStoreFloat3(&n, faceNormal);
 
 		// 4 vertices per tile, pre-transformed to world space
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx - half, cy, cz + half }, normal, rotatedUvs[0]);
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx + half, cy, cz + half }, normal, rotatedUvs[1]);
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx + half, cy, cz - half }, normal, rotatedUvs[2]);
-		vbuf.EmplaceBack(dx::XMFLOAT3{ cx - half, cy, cz - half }, normal, rotatedUvs[3]);
+		vbuf.EmplaceBack(v0, n, rotatedUvs[0]);
+		vbuf.EmplaceBack(v1, n, rotatedUvs[1]);
+		vbuf.EmplaceBack(v2, n, rotatedUvs[2]);
+		vbuf.EmplaceBack(v3, n, rotatedUvs[3]);
 
 		const auto base = static_cast<unsigned short>(i * 4);
 		indices.push_back(base + 0);

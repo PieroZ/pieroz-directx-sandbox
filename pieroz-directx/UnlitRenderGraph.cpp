@@ -5,6 +5,7 @@
 #include "Source.h"
 #include "RenderTarget.h"
 #include "DepthStencil.h"
+#include "SkyboxPass.h"
 
 namespace Rgph
 {
@@ -32,11 +33,19 @@ namespace Rgph
 			AppendPass(std::move(pass));
 		}
 
+		// Skybox pass
+		{
+			auto pass = std::make_unique<SkyboxPass>(gfx, "skybox");
+			pass->SetSinkLinkage("renderTarget", "lambertian.renderTarget");
+			pass->SetSinkLinkage("depthStencil", "lambertian.depthStencil");
+			AppendPass(std::move(pass));
+		}
+
 		// Wireframe overlay pass
 		{
 			auto pass = std::make_unique<WireframePass>(gfx, "wireframe");
-			pass->SetSinkLinkage("renderTarget", "lambertian.renderTarget");
-			pass->SetSinkLinkage("depthStencil", "lambertian.depthStencil");
+			pass->SetSinkLinkage("renderTarget", "skybox.renderTarget");
+			pass->SetSinkLinkage("depthStencil", "skybox.depthStencil");
 			AppendPass(std::move(pass));
 		}
 
@@ -47,5 +56,13 @@ namespace Rgph
 	void UnlitRenderGraph::BindMainCamera(Camera& cam)
 	{
 		dynamic_cast<UnlitPass&>(FindPassByName("lambertian")).BindMainCamera(cam);
+		dynamic_cast<SkyboxPass&>(FindPassByName("skybox")).BindMainCamera(cam);
+
 	}
+
+	void UnlitRenderGraph::RenderSkyboxWindow()
+	{
+		dynamic_cast<SkyboxPass&>(FindPassByName("skybox")).RenderWindow();
+	}
+
 }

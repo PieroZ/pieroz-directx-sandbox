@@ -22,6 +22,7 @@
 #include "PrimConverter.h"
 #include "WallBatch.h"
 #include "tmaLoader.h"
+#include "SkyboxPass.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -434,6 +435,9 @@ void App::DoFrameTileMap(float dt)
 
 	pUnlitRg->Execute(wnd.Gfx());
 
+	//Skybox controls
+	pUnlitRg->RenderSkyboxWindow();
+
 	// Debug stats overlay (top-left corner, semi-transparent)
 	{
 		ImGui::SetNextWindowPos({ 10.0f, 10.0f }, ImGuiCond_FirstUseEver);
@@ -520,6 +524,8 @@ void App::ShowTileMapWindow()
 			auto iamResult = LoadIamMap(tileMapPath);
 			auto mapjson = BuildMapJson(iamResult);
 
+
+			// TODO: Investigate SLONG texture_quad(POLY_Point *quad[4],SLONG texture_style,SLONG pos,SLONG count,SLONG flipx=0)
 			tma tma_result = load_texture_styles(0, iamResult.texture_set);
 
 			std::filesystem::path path(tileMapPath);

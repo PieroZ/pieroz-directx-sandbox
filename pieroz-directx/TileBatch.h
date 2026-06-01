@@ -14,6 +14,8 @@ public:
 		float worldX, worldY, worldZ;
 		int rotation = 0; // 0-3 0, 90, 180, 270
 		int flip = 0;
+		// Per-corner altitude offsets (Y): [0](-X,+Z), [1](+X,+Z)
+		float altCorners[4] = { 0.0f,0.0f,0.0f,0.0f }; 
 	};
 
 	// Build a single mesh from all tile instances (same texture, same tile size)

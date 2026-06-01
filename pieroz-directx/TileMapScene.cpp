@@ -74,13 +74,57 @@ void TileMapScene::BuildBatches(Graphics& gfx)
 	// Group tiles by texture path
 	std::unordered_map<std::string, std::vector<TileBatch::TileInstance>> groups;
 
+	// Build a 2D lookup of alt values for corner computation
+	// Find grid dimensions
+	int maxCol = 0, maxRow = 0;
+	for (const auto& t : currentDef.tiles)
+	{
+		if (t.col > maxCol) maxCol = t.col;;
+		if (t.row > maxRow) maxRow = t.row;;
+	}
+	const int gridW = maxCol + 1;
+	const int gridH = maxRow + 1;
+
+	//Create alt grid (default 0)
+	std::vector<int> altGrid(gridW * gridH, 0);
+	for (const auto& t : currentDef.tiles)
+	{
+		altGrid[t.row * gridW + t.col] = t.alt;
+	}
+
+	// Helper to safely get alt at grid position
+	// FIXME: Adjust values - rounding error
+	auto getAlt = [&](int col, int row) -> int
+		{
+			if (col < 0 || col >= gridW || row < 0 || row >= gridH)
+				return 0.0f; // default alt for out-of-bounds
+			return altGrid[row * gridW + col] / 16.0f;
+		};
+
 	for (const auto& tileDef : currentDef.tiles)
 	{
 		const float worldX = currentDef.originX + tileDef.col * currentDef.tileSize;
 		const float worldZ = currentDef.originZ + tileDef.row * currentDef.tileSize;
 		const float worldY = tileDef.height;
 
-		groups[tileDef.texturePath].push_back({ worldX, worldY, worldZ, tileDef.rotation, tileDef.flip });
+		//groups[tileDef.texturePath].push_back({ worldX, worldY, worldZ, tileDef.rotation, tileDef.flip, tileDef.alt });
+		// Tile corner use Alt values from the 4 grid vertices surrounding the tile.
+		// Tile at (col, row) has corner at grid points:
+		// (col, row), (col+1, row)...
+		// Vertex layout: [0]= (-X+Z), [1]= (+X,+Z), [2] = (+X,-Z), [3] = (-X,-Z)
+		// Mapping: vertex0 = grid(col, row+1), vertex1 = grid(col+1, row+1), vertex2 = grid(col+1, row), vertex3 = grid(col, row)
+		TileBatch::TileInstance instance;
+		instance.worldX = worldX;
+		instance.worldY = worldY;
+		instance.worldZ = worldZ;
+		instance.rotation = tileDef.rotation;
+		instance.flip = tileDef.flip;
+		instance.altCorners[0] = getAlt(tileDef.col, tileDef.row + 1); // vertex 0 = grid(col, row+1)
+		instance.altCorners[1] = getAlt(tileDef.col + 1, tileDef.row + 1); // vertex 1 = grid(col+1, row+1)
+		instance.altCorners[2] = getAlt(tileDef.col + 1, tileDef.row); // vertex 2 = grid(col+1, row)
+		instance.altCorners[3] = getAlt(tileDef.col, tileDef.row); // vertex 3 = grid(col, row)
+
+		groups[tileDef.texturePath].push_back(instance);
 	}
 
 	totalTileCount = currentDef.tiles.size();
