@@ -3,6 +3,7 @@
 #include "Vertex.h"
 #include "Channels.h"
 #include "TextureIdToFilenameHelper.h"
+#include <DirectXCollision.h>
 #include <cmath>
 #include <unordered_map>
 
@@ -72,7 +73,14 @@ WallBatch::WallBatch(Graphics& gfx,
 		const float uLen = len / gridScale;
 
 		// Vertices
-		vbuf.EmplaceBack(
+		dx::XMFLOAT3 wv0{ x0, ty0_bottom, z0 };
+		dx::XMFLOAT3 wv1{ x1, ty1_bottom, z1 };
+		dx::XMFLOAT3 wv2{ x1, ty1_top, z1 };
+		dx::XMFLOAT3 wv3{ x0, ty0_top, z0 };
+
+
+
+		/*vbuf.EmplaceBack(
 			dx::XMFLOAT3{ x0, ty0_bottom, z0 },
 			normal,
 			dx::XMFLOAT2{ 0.0f, 1.0f });
@@ -90,7 +98,19 @@ WallBatch::WallBatch(Graphics& gfx,
 		vbuf.EmplaceBack(
 			dx::XMFLOAT3{ x0, ty0_top, z0 },
 			normal,
-			dx::XMFLOAT2{ 0.0f, 0.0f });
+			dx::XMFLOAT2{ 0.0f, 0.0f });*/
+
+		vbuf.EmplaceBack(wv0, normal, dx::XMFLOAT2{ 0.0f, 1.0f });
+		vbuf.EmplaceBack(wv1, normal, dx::XMFLOAT2{ uLen, 1.0f });
+		vbuf.EmplaceBack(wv2, normal, dx::XMFLOAT2{ uLen, 0.0f });
+		vbuf.EmplaceBack(wv3, normal, dx::XMFLOAT2{ 0.0f, 0.0f });
+
+		// Store CPU-side quad vertices for picking
+		cpuQuadVertices.push_back(wv0);
+		cpuQuadVertices.push_back(wv1);
+		cpuQuadVertices.push_back(wv2);
+		cpuQuadVertices.push_back(wv3);
+		
 
 		const auto base = static_cast<unsigned short>(wallCount * 4);
 
@@ -145,6 +165,68 @@ dx::XMMATRIX WallBatch::GetTransformXM() const noexcept
 	return dx::XMMatrixIdentity();
 }
 
+std::optional<std::pair<QuadMeasurement, float>> WallBatch::PickQuad(
+	DirectX::FXMVECTOR rayOrigin, DirectX::FXMVECTOR rayDir) const
+{
+	float bestDist = FLT_MAX;
+	int bestQuad = -1;
+
+	for (UINT q = 0; q < wallCount; q++)
+	{
+		const auto& qv0 = cpuQuadVertices[q * 4 + 0];
+		const auto& qv1 = cpuQuadVertices[q * 4 + 1];
+		const auto& qv2 = cpuQuadVertices[q * 4 + 2];
+		const auto& qv3 = cpuQuadVertices[q * 4 + 3];
+
+		// Triangle 1: v0, v 1, v2
+		float dist = 0.0f;
+		if (dx::TriangleTests::Intersects(rayOrigin, rayDir, 
+			dx::XMLoadFloat3(&qv0), dx::XMLoadFloat3(&qv1), dx::XMLoadFloat3(&qv2), dist))
+		{
+			if (dist < bestDist)
+			{
+				bestDist = dist;
+				bestQuad = (int)q;
+			}
+		}
+		// Triangle 2: v0, v2, v3
+		if (dx::TriangleTests::Intersects(rayOrigin, rayDir,
+			dx::XMLoadFloat3(&qv0), dx::XMLoadFloat3(&qv2), dx::XMLoadFloat3(&qv3), dist))
+		{
+			if (dist < bestDist)
+			{
+				bestDist = dist;
+				bestQuad = (int)q;
+			}
+		}
+	}
+
+	if (bestQuad < 0)
+		return std::nullopt;
+
+	const auto& v0 = cpuQuadVertices[bestQuad * 4 + 0];
+	const auto& v1 = cpuQuadVertices[bestQuad * 4 + 1];
+	const auto& v2 = cpuQuadVertices[bestQuad * 4 + 2];
+	const auto& v3 = cpuQuadVertices[bestQuad * 4 + 3];
+
+	auto vecLen = [](const dx::XMFLOAT3& a, const dx::XMFLOAT3& b) -> float
+		{
+			const float dx = b.x - a.x;
+			const float dy = b.y - a.y;
+			const float dz = b.z - a.z;
+			return std::sqrt(dx * dx + dy * dy + dz * dz);
+		};
+
+	QuadMeasurement m;
+	m.v0 = v0; m.v1 = v1; m.v2 = v2; m.v3 = v3;
+	m.width = vecLen(v0, v1);
+	m.height = vecLen(v0, v3);
+	m.diagonal0 = vecLen(v0, v2);
+	m.diagonal1 = vecLen(v1, v3);
+
+	return std::make_pair(m, bestDist);
+}
+
 ULONG facet_rand(void)
 {
 	static	ULONG	facet_seed = 0x12345678;
@@ -158,6 +240,7 @@ std::vector<std::unique_ptr<WallBatch>> WallBatch::CreateBatches(
 	Graphics& gfx,
 	const std::vector<DFacet>& facets,
 	const std::vector<signed short>& styles,
+	const std::vector<DStorey>& storeys,
 	const tma& tmaData,
 	int worldNo,
 	float gridScale,
@@ -184,7 +267,7 @@ std::vector<std::unique_ptr<WallBatch>> WallBatch::CreateBatches(
 
 			std::string texturePath = "Images\\brickwall.jpg";
 
-			const size_t styleIndex = f.StyleIndex + z;
+			size_t styleIndex = f.StyleIndex + z;
 
 			if (styleIndex < styles.size() && styles[styleIndex])
 			{
@@ -196,6 +279,30 @@ std::vector<std::unique_ptr<WallBatch>> WallBatch::CreateBatches(
 						tmaData.dx_textures_xy[styles[styleIndex]]
 						[texture_piece]
 						.Page;
+				}
+				else if (styles[styleIndex] < 0)
+				{
+					try
+					{
+						DStorey storey = storeys.at(-styles[styleIndex]);
+
+						signed long index = storey.Index;
+						int pos = 0;
+						if (pos == 0)
+						{
+							styleIndex = storey.Style;
+
+							page =
+								tmaData.dx_textures_xy.at(styles[styleIndex])
+								[texture_piece]
+								.Page;
+
+						}
+					}
+					catch (...)
+					{
+						page = 0;
+					}
 				}
 
 				auto paths = get_texture_paths(

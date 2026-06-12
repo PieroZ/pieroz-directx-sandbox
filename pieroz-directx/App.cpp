@@ -26,6 +26,9 @@
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
+#include <cmath>
+#include <fstream>
+#include "json.hpp"
 
 namespace dx = DirectX;
 
@@ -115,6 +118,9 @@ App::App( const std::string& commandLine, SceneType scene )
 		pTileScene->LinkTechniques(*pUnlitRg);
 		cameras.LinkTechniques(*pUnlitRg);
 	}
+
+	LoadWindowSettings();
+	strncpy_s(tileMapPath, tileMapPathString.c_str(), MAX_PATH);
 }
 
 void App::HandleInput( float dt )
@@ -296,6 +302,7 @@ void App::DoFrameDefault(float dt)
 		pLight->SpawnControlWindow();
 	}
 
+	if (showModelLoaderWindow)
 	{
 		ImGui::Begin("Model Loader");
 		static char pathBuf[MAX_PATH] = "";
@@ -338,14 +345,23 @@ void App::DoFrameDefault(float dt)
 		ImGui::End();
 	}
 
-	ShowPickingWindow();
 
-	uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex, [this](Mesh* pMesh, size_t faceIdx, const std::string& texPath)
-		{
-			RebuildTexturedOverlays();
-		}
-	);
-	ShowExportWindow();
+	ShowWindowControlPanel();
+	if(showPickingWindow)
+		ShowPickingWindow();
+
+	if (showUvEditorWindow)
+	{
+		uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex, [this](Mesh* pMesh, size_t faceIdx, const std::string& texPath)
+			{
+				RebuildTexturedOverlays();
+			}
+		);
+	}
+	if (showExportWindow)
+	{
+		ShowExportWindow();
+	}
 }
 
 void App::DoFrameTileMap(float dt)
@@ -469,22 +485,40 @@ void App::DoFrameTileMap(float dt)
 	}
 
 
+	ShowWindowControlPanel();
+
 	if (showDebugOverlay)
 	{
 		DrawDebugOverlay();
 	}
 
-	ShowNprimImportWindow();
-	ShowTileMapWindow();
-	ShowPickingWindow();
+	if (showNprimImportWindow)
+	{
+		ShowNprimImportWindow();
+	}
+	if (showTileMapWindow)
+	{
+		ShowTileMapWindow();
+	}
+	if (showPickingWindow)
+	{
+		ShowPickingWindow();
+	}
 
-	uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex, [this](Mesh* pMesh, size_t faceIdx, const std::string& texPath)
-		{
-			RebuildTexturedOverlays();
-		}
-	);
 
-	ShowExportWindow();
+	if (showUvEditorWindow)
+	{
+		uvEditor.Show(wnd.Gfx(), pPickedMesh, pickedFaceIndex, [this](Mesh* pMesh, size_t faceIdx, const std::string& texPath)
+			{
+				RebuildTexturedOverlays();
+			}
+		);
+	}
+
+	if (showExportWindow)
+	{
+		ShowExportWindow();
+	}
 }
 
 void App::ShowTileMapWindow()
@@ -497,7 +531,6 @@ void App::ShowTileMapWindow()
 	ImGui::Separator();
 	ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Load Tile Map from .iam");
 
-	static char tileMapPath[MAX_PATH] = "";
 	ImGui::InputText("Map File", tileMapPath, MAX_PATH);
 	if (ImGui::Button("Browse Map..."))
 	{
@@ -522,6 +555,8 @@ void App::ShowTileMapWindow()
 		try
 		{
 			auto iamResult = LoadIamMap(tileMapPath);
+
+			tileMapPathString = tileMapPath;
 			auto mapjson = BuildMapJson(iamResult);
 
 
@@ -544,6 +579,7 @@ void App::ShowTileMapWindow()
 					wnd.Gfx(),
 					iamResult.dfacets,
 					iamResult.dstyles,
+					iamResult.dstoreys,
 					tma_result,
 					iamResult.texture_set,
 					1.0f, // gridScale: 1 world unit per grid cell
@@ -731,6 +767,43 @@ void App::PerformPicking()
 		
 	}
 
+		
+	// Test tile and wall batches for quad measurement
+	pickedQuadMeasurement.reset();
+	if (pTileScene)
+	{
+		// Test tile batches
+		for (const auto& batch : pTileScene->GetBatches())
+		{
+			if (auto hit = batch->PickQuad(rayOrigin, rayDir))
+			{
+				if (hit->second < bestDist)
+				{
+					bestDist = hit->second;
+					pickedQuadMeasurement = hit->first;
+					pPickedMesh = nullptr; // quad pick takes priority
+				}
+			}
+		}
+	}
+
+	// Test wall batches
+	for (const auto& wb : wallBatches)
+	{
+		if (wb->GetWallCount() > 0)
+		{
+			if (auto hit = wb->PickQuad(rayOrigin, rayDir))
+			{
+				if (hit->second < bestDist)
+				{
+					bestDist = hit->second;
+					pickedQuadMeasurement = hit->first;
+					pPickedMesh = nullptr; // quad pick takes priority
+				}
+			}
+		}
+	}
+
 	// Build single-triangle indicator for the picked face
 	if (pPickedMesh)
 	{
@@ -755,10 +828,55 @@ void App::ShowPickingWindow()
 {
 	ImGui::Begin("Mesh Picker");
 
-	if (pPickedMesh == nullptr)
+	if (pPickedMesh == nullptr && !pickedQuadMeasurement.has_value())
 	{
 		ImGui::TextColored( {0.7f,0.7f, 0.7f, 1.0f}, "Left-click on a mesh to select it");
 		ImGui::Text("(cursor must be enabled)");
+	}
+	else if (pickedQuadMeasurement.has_value())
+	{
+		const auto& m = pickedQuadMeasurement.value();
+		ImGui::TextColored({ 1.0f, 1.0f, 0.3, 1.0f }, "Tile/Wall Measurement");
+		ImGui::Separator();
+		ImGui::Text("Width (v0-v1): %.4f", m.width);
+		ImGui::Text("Height (v1-v2): %.4f", m.height);
+		ImGui::Text("Diagonal (v0-v2): %.4f", m.diagonal0);
+		ImGui::Text("Diagonal (v0-v1): %.4f", m.diagonal1);
+		ImGui::Separator();
+		ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "Corners (world space):");
+		ImGui::Text("v0: (%.3f, %.3f, %.3f)", m.v0.x, m.v0.y, m.v0.z);
+		ImGui::Text("v1: (%.3f, %.3f, %.3f)", m.v1.x, m.v1.y, m.v1.z);
+		ImGui::Text("v2: (%.3f, %.3f, %.3f)", m.v2.x, m.v2.y, m.v2.z);	
+		ImGui::Text("v3: (%.3f, %.3f, %.3f)", m.v3.x, m.v3.y, m.v3.z);
+		ImGui::Separator();
+		float edgeV1V2 = m.height; // already computed as v1->v2 in wall, v0->v3 in tile
+		float edgeV2V3 = 0.0f;
+		{
+			float dx = m.v2.x - m.v3.x, dy = m.v2.y - m.v3.y, dz = m.v2.z - m.v3.z;
+			edgeV2V3 = std::sqrtf(dx * dx + dy * dy + dz * dz);
+		}
+		float edgeV3V0 = 0.0f;
+		{
+			float dx = m.v3.x - m.v0.x, dy = m.v3.y - m.v0.y, dz = m.v3.z - m.v0.z;
+			edgeV3V0 = std::sqrtf(dx * dx + dy * dy + dz * dz);
+		}
+
+		ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "All edges:");
+		ImGui::Text("v0-v1: %.4f", m.width);
+		ImGui::Text("v1-v2: %.4f", m.height);
+		ImGui::Text("v2-v3: %.4f", edgeV2V3);
+		ImGui::Text("v3-v0: %.4f", edgeV3V0);
+
+		if (std::abs(m.width - m.height) > 0.001f ||
+			std::abs(m.width - edgeV2V3) > 0.001f ||
+			std::abs(m.width - edgeV3V0) > 0.001f)
+		{
+			ImGui::TextColored({ 1.0f, 0.3f, 0.3f, 1.0f }, "! Edges are NOT equal !");
+		}
+		else
+		{
+			ImGui::TextColored({ 0.3f, 1.0f, 0.3f, 1.0f }, "Edges are equal");
+		}
 	}
 	else
 	{
@@ -1156,8 +1274,93 @@ void App::DrawDebugOverlay()
 }
 
 
+void App::ShowWindowControlPanel()
+{
+	ImGui::Begin("Windows");
+
+	ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Toggle window  visibility:");
+	ImGui::Separator();
+
+	ImGui::Checkbox("Mesh Picker", &showPickingWindow);
+	ImGui::Checkbox("Export", &showExportWindow);
+	ImGui::Checkbox("UV Editor", &showUvEditorWindow);
+	ImGui::Checkbox("Model Loader", &showModelLoaderWindow);
+
+	if (sceneType == SceneType::TileMap)
+	{
+		ImGui::Checkbox("Tile Map", &showTileMapWindow);
+		ImGui::Checkbox("Import Prim", &showNprimImportWindow);
+	}
+
+	ImGui::Separator();
+	ImGui::Checkbox("Debug Overlay", &showDebugOverlay);
+	ImGui::Checkbox("ImGui Demo", &showDemoWindow);
+
+	ImGui::End();
+}
+
+static const char* WINDOW_SETTINGS_FILE = "window_settings.json";
+
+void App::SaveWindowSettings() const
+{
+	nlohmann::json j;
+	j["showPickingWindow"] = showPickingWindow;
+	j["showTileMapWindow"] = showTileMapWindow;
+	j["showExportWindow"] = showExportWindow;
+	j["showNprimImportWindow"] = showNprimImportWindow;
+	j["showModelLoaderWindow"] = showModelLoaderWindow;
+	j["showUvEditorWindow"] = showUvEditorWindow;
+	j["showDebugOverlay"] = showDebugOverlay;
+	j["showDemoWindow"] = showDemoWindow;
+	j["tileMapPathString"] = tileMapPathString;
+
+	std::ofstream file(WINDOW_SETTINGS_FILE);
+	if (file.is_open())
+	{
+		file << j.dump(2);
+	}
+}
+
+template<typename T>
+static void LoadIfExists(const nlohmann::json& j, const char* key, T& value)
+{
+	if (j.contains(key))
+	{
+		value = j[key].get<T>();
+	}
+}
+
+void App::LoadWindowSettings()
+{
+	try
+	{
+		std::ifstream file(WINDOW_SETTINGS_FILE);
+		if (!file.is_open())
+			return;
+
+		nlohmann::json j;
+		file >> j;
+
+		LoadIfExists(j, "showPickingWindow", showPickingWindow);
+		LoadIfExists(j, "showTileMapWindow", showTileMapWindow);
+		LoadIfExists(j, "showExportWindow", showExportWindow);
+		LoadIfExists(j, "showNprimImportWindow", showNprimImportWindow);
+		LoadIfExists(j, "showModelLoaderWindow", showModelLoaderWindow);
+		LoadIfExists(j, "showUvEditorWindow", showUvEditorWindow);
+		LoadIfExists(j, "showDebugOverlay", showDebugOverlay);
+		LoadIfExists(j, "showDemoWindow", showDemoWindow);
+		LoadIfExists(j, "tileMapPathString", tileMapPathString);
+	}
+	catch (const std::exception&)
+	{
+		// If parsing fails, keep defaults
+	}
+}
+
 App::~App()
-{}
+{
+	SaveWindowSettings();
+}
 
 int App::Go()
 {

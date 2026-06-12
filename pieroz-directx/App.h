@@ -16,11 +16,13 @@
 #include "TexturedTriangleOverlay.h"
 #include "ObjExporter.h"
 #include "TileMapScene.h"
+#include "TileBatch.h"
 #include "PrimDrawable.h"
 #include "WallBatch.h"
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
 class Mesh;
 class TriangleIndicator;
@@ -51,6 +53,9 @@ private:
 	void ShowNprimImportWindow();
 	void ShowTileMapWindow();
 	void DrawDebugOverlay();
+	void ShowWindowControlPanel();
+	void SaveWindowSettings() const;
+	void LoadWindowSettings();
 
 	// Helper to get active render graph
 	Rgph::RenderGraph& GetRenderGraph() noexcept;
@@ -100,6 +105,11 @@ private:
 	float tileModelScale = 1.0f;
 
 
+	
+	// Tile/wall quad measurement (from picking)
+	std::optional<QuadMeasurement> pickedQuadMeasurement;
+	
+	
 	// Wall geometry built from DFacets ( one batch per texture ) 
 	std::vector<std::unique_ptr<WallBatch>> wallBatches;
 
@@ -111,4 +121,16 @@ private:
 	bool savingDepth = false;
 	bool showImguiDebugWindows = false;
 	bool showDebugOverlay = false;
+
+	// Window visibility toggles 
+	bool showPickingWindow = true;
+	bool showTileMapWindow = true;
+	bool showExportWindow = true;
+	bool showNprimImportWindow = true;
+	bool showModelLoaderWindow = true;
+	bool showUvEditorWindow = true;
+
+	std::string tileMapPathString;
+
+	char tileMapPath[MAX_PATH];
 };

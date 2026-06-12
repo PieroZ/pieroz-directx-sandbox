@@ -39,6 +39,7 @@ public:
 	const TileMapDef& GetMapDef() const noexcept { return currentDef; }
 	Model* GetDynamicModel() const noexcept { return dynamicModel.get(); }
 	size_t GetBatchCount() const noexcept { return batches.size(); }
+	const std::vector<std::unique_ptr<TileBatch>>& GetBatches() const noexcept { return batches; }
 
 private: 
 	void BuildBatches(Graphics& gfx);

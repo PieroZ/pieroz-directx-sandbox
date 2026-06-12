@@ -2,7 +2,17 @@
 #include "Drawable.h"
 #include <string>
 #include <vector>
+#include <optional>
 #include <DirectXMath.h>
+
+struct QuadMeasurement
+{
+	DirectX::XMFLOAT3 v0, v1, v2, v3; // quad corners
+	float width;
+	float height; // length of left edge (v0->v3)
+	float diagonal0; // v0->v2
+	float diagonal1; // v1->v3
+};
 
 // A batched drawable that merges many tiles sharing the same texture into one draw call.
 // Vertices are pre-transformed to world space. Transform return identity.
@@ -26,6 +36,12 @@ public:
 
 	UINT GetTileCount() const noexcept { return tileCount; }
 
+	// Ray-quad picking: returns measurement of the hig quad, if any.
+	std::optional<std::pair<QuadMeasurement, float>> PickQuad(
+		DirectX::FXMVECTOR rayOrigin, DirectX::FXMVECTOR rayDir) const;
+
 private:
 	UINT tileCount;
+	// CPU-side quad vertices for picking(4  per tile: v0,v1,v2,v3)
+	std::vector<DirectX::XMFLOAT3> cpuQuadVertices;
 };

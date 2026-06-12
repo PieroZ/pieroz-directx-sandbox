@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Drawable.h"
+#include "TileBatch.h"
 #include "iam.h"
 #include "tma.h"
 #include <string>
 #include <vector>
+#include <optional>
 #include <memory>
 #include <DirectXMath.h>
 
@@ -40,6 +42,7 @@ public:
 		Graphics& gfx,
 		const std::vector<DFacet>& facets,
 		const std::vector<signed short>& styles,
+		const std::vector<DStorey>& storeys,
 		const tma& tmaData,
 		int worldNo,
 		float gridScale = 1.0f,
@@ -50,6 +53,12 @@ public:
 
 	UINT GetWallCount() const noexcept { return wallCount; }
 
+	// Ray-quad picking: returns measurement of the hit quad, if any.
+	std::optional<std::pair<QuadMeasurement, float>> PickQuad(
+		DirectX::FXMVECTOR rayOrigin, DirectX::FXMVECTOR rayDir) const;
+
 private:
 	UINT wallCount = 0;
+	// CPU-side quad vertices for picking(4 per wall: bottom-left, bottom-right, top-left, top-right)
+	std::vector<DirectX::XMFLOAT3> cpuQuadVertices;
 };

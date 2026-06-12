@@ -2,6 +2,8 @@
 #include "BindableCommon.h"
 #include "Vertex.h"
 #include "Channels.h"
+#include <DirectXCollision.h>
+#include <cmath>
 
 namespace dx = DirectX;
 
@@ -121,6 +123,13 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 		dx::XMFLOAT3 v2{ cx + half, cy + instances[i].altCorners[2], cz - half };
 		dx::XMFLOAT3 v3{ cx - half, cy + instances[i].altCorners[3], cz - half };
 
+		// Store CPU quad vertices for picking
+		cpuQuadVertices.push_back(v0);
+		cpuQuadVertices.push_back(v1);
+		cpuQuadVertices.push_back(v2);
+		cpuQuadVertices.push_back(v3);
+
+
 		// normalize((v1-v0) x (v3-v0))
 		dx::XMVECTOR edge1 = dx::XMVectorSubtract(dx::XMLoadFloat3(&v1), dx::XMLoadFloat3(&v0));
 		dx::XMVECTOR edge2 = dx::XMVectorSubtract(dx::XMLoadFloat3(&v3), dx::XMLoadFloat3(&v0));
@@ -174,4 +183,64 @@ dx::XMMATRIX TileBatch::GetTransformXM() const noexcept
 {
 	// Vertices are already in world space
 	return dx::XMMatrixIdentity();
+}
+
+std::optional<std::pair<QuadMeasurement, float>> TileBatch::PickQuad(
+	DirectX::FXMVECTOR rayOrigin, DirectX::FXMVECTOR rayDir) const
+{
+	float bestDist = FLT_MAX;
+	int bestQuad = -1;
+
+	for (UINT q = 0; q < tileCount; q++)
+	{
+		const auto& qv0 = cpuQuadVertices[q * 4 + 0];
+		const auto& qv1 = cpuQuadVertices[q * 4 + 1];
+		const auto& qv2 = cpuQuadVertices[q * 4 + 2];
+		const auto& qv3 = cpuQuadVertices[q * 4 + 3];
+
+		// Triangle 1: v0, v1, v2
+		float dist = 0.0f;
+		if(dx::TriangleTests::Intersects(rayOrigin, rayDir,
+			dx::XMLoadFloat3(&qv0), dx::XMLoadFloat3(&qv1), dx::XMLoadFloat3(&qv2), dist))
+		{
+			if (dist < bestDist)
+			{
+				bestDist = dist;
+				bestQuad = static_cast<int>(q);
+			}
+		}
+
+		// Triangle 2: v0, v2, v3
+		if (dx::TriangleTests::Intersects(rayOrigin, rayDir,
+			dx::XMLoadFloat3(&qv0), dx::XMLoadFloat3(&qv2), dx::XMLoadFloat3(&qv3), dist))
+		{
+			if (dist < bestDist)
+			{
+				bestDist = dist;
+				bestQuad = static_cast<int>(q);
+			}
+		}
+	}
+	if (bestQuad < 0)
+		return std::nullopt;
+
+	const  auto& v0 = cpuQuadVertices[bestQuad * 4 + 0];
+	const  auto& v1 = cpuQuadVertices[bestQuad * 4 + 1];
+	const  auto& v2 = cpuQuadVertices[bestQuad * 4 + 2];
+	const  auto& v3 = cpuQuadVertices[bestQuad * 4 + 3];
+
+	auto vecLen = [](const dx::XMFLOAT3& a, const dx::XMFLOAT3& b) -> float
+		{
+			float dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+			return sqrtf(dx * dx + dy * dy + dz * dz);
+		};
+
+	QuadMeasurement m;
+	m.v0 = v0; m.v1 = v1; m.v2 = v2; m.v3 = v3;
+	m.width = vecLen(v0, v1);
+	m.height = vecLen(v0, v3);
+	m.diagonal0 = vecLen(v0, v2);
+	m.diagonal1 = vecLen(v1, v3);
+
+	return std::make_pair(m, bestDist);
 }

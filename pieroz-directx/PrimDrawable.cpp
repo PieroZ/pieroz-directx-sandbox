@@ -32,6 +32,7 @@ PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std
 		step.AddBindable(Sampler::Resolve(gfx));
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
 		step.AddBindable(Rasterizer::Resolve(gfx, false));
+		step.AddBindable(Blender::Resolve(gfx, true));
 
 		unlit.AddStep(std::move(step));
 		AddTechnique(std::move(unlit));
