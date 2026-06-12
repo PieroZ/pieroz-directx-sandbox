@@ -13,6 +13,7 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 {
 	using namespace Bind;
 	const auto rootPath = path.parent_path().string() + "\\";
+	bool hasTexture = false;
 	{
 		aiString tempName;
 		material.Get( AI_MATKEY_NAME,tempName );
@@ -29,7 +30,6 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 		vtxLayout.Append( Dvtx::VertexLayout::Position3D );
 		vtxLayout.Append( Dvtx::VertexLayout::Normal );
 		Dcb::RawLayout pscLayout;
-		bool hasTexture = false;
 		bool hasGlossAlpha = false;
 
 		// diffuse
@@ -211,6 +211,81 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 			wire.AddStep(std::move(draw));
 		}
 		techniques.push_back(std::move(wire));
+	}
+	// ColorLit technique - colored point light rendering (inactive by default, toggled via picking)
+	if (!unlit)
+	{
+		Technique colorLit{ "ColorLit", Chan::main,false };
+		{
+			Step step("colorLit");
+			step.AddBindable(std::make_shared<TransformCbuf>(gfx, 0u));
+
+			auto pvs = VertexShader::Resolve(gfx, "ColorLit_VS.cso");
+			step.AddBindable(InputLayout::Resolve(gfx, vtxLayout, *pvs));
+			step.AddBindable(std::move(pvs));
+			step.AddBindable(PixelShader::Resolve(gfx, "ColorLit_PS.cso"));
+
+			// Material + light tint parameters
+			{
+				Dcb::RawLayout lay;
+				lay.Add<Dcb::Float3>("materialColor");
+				lay.Add<Dcb::Float>("padding0");
+				lay.Add<Dcb::Float3>("lightTint");
+				lay.Add<Dcb::Float>("lightIntensity");
+				auto buf = Dcb::Buffer(std::move(lay));
+				buf["materialColor"] = DirectX::XMFLOAT3{ 0.8f,0.8f,0.8f };
+				buf["padding0"] = 0.0f;
+				buf["lightTint"] = DirectX::XMFLOAT3{ 0.3f,0.8f,0.8f }; // default: cyan tint
+				buf["lightIntensity"] = 2.0f;
+				step.AddBindable(std::make_shared<Bind::CachingPixelConstantBufferEx>(gfx, buf, 1u));
+			}
+
+			colorLit.AddStep(std::move(step));
+		}
+		techniques.push_back(std::move(colorLit));
+	}
+	// Unlit technique - flat color/texture, no lighting (inactive by default)
+	{
+		Technique unlitTech{ "Unlit", Chan::main, false };
+		{
+			Step step("lambertian");
+			step.AddBindable(std::make_shared<TransformCbuf>(gfx, 0u));
+			if (hasTexture)
+			{
+				// Use existing Unlit shaders for textured models
+				auto pvs = VertexShader::Resolve(gfx, "Unlit_VS.cso");
+				step.AddBindable(InputLayout::Resolve(gfx, vtxLayout, *pvs));
+				step.AddBindable(std::move(pvs));
+				step.AddBindable(PixelShader::Resolve(gfx, "Unlit_PS.cso"));
+				step.AddBindable(Bind::Sampler::Resolve(gfx));
+				// Re-add diffuse texture (slot 0 ) for unlit rendering
+				aiString texFileName;
+				if (material.GetTexture(aiTextureType_DIFFUSE, 0, &texFileName) == aiReturn_SUCCESS)
+				{
+					step.AddBindable(Texture::Resolve(gfx, rootPath + texFileName.C_Str()));
+				}
+			}
+			else
+			{
+				// Use Solid shaders for non-extured models
+				auto pvs = VertexShader::Resolve(gfx, "Solid_VS.cso");
+				step.AddBindable(InputLayout::Resolve(gfx, vtxLayout, *pvs));
+				step.AddBindable(std::move(pvs));
+				step.AddBindable(PixelShader::Resolve(gfx, "Solid_PS.cso"));
+				// Material color parameter
+				{
+					Dcb::RawLayout lay;
+					lay.Add<Dcb::Float3>("materialColor");
+					auto buf = Dcb::Buffer(std::move(lay));
+					aiColor3D color = { 0.45f,0.45f,0.85f };
+					material.Get(AI_MATKEY_COLOR_DIFFUSE, color);
+					buf["materialColor"] = reinterpret_cast<DirectX::XMFLOAT3&>(color);
+					step.AddBindable(std::make_shared<Bind::CachingPixelConstantBufferEx>(gfx, buf, 1u));
+				}
+			}
+			unlitTech.AddStep(std::move(step));
+		}
+		techniques.push_back(std::move(unlitTech));
 	}
 }
 Dvtx::VertexBuffer Material::ExtractVertices( const aiMesh& mesh ) const noexcept

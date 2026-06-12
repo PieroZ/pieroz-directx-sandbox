@@ -932,5 +932,11 @@
     <FxCompile Include="Unlit_PS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="ColorLit_VS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="ColorLit_PS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

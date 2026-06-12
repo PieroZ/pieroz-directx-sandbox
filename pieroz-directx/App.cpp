@@ -23,6 +23,8 @@
 #include "WallBatch.h"
 #include "tmaLoader.h"
 #include "SkyboxPass.h"
+#include "ConstantBuffersEx.h"
+#include "DynamicConstant.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
@@ -728,6 +730,40 @@ void App::PerformPicking()
 	}
 	showWireframe = false;
 
+
+	// Reset render mode on previously selected mesh
+	if (pPrevRenderModeMesh)
+	{
+		for (auto& tech : pPrevRenderModeMesh->GetTechniques())
+		{
+			if (tech.GetName() == "Phong") tech.SetActiveState(false);
+			else if (tech.GetName() == "Unlit") tech.SetActiveState(false);
+			else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
+			else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+		}
+		pPrevRenderModeMesh = nullptr;
+	}
+	selectedRenderMode = 0;
+
+	// Deselect previously selected prim
+	if (pPrevSelectedPrim)
+	{
+		for (auto& tech : pPrevSelectedPrim->GetTechniques())
+		{
+			if (tech.GetName() == "Selection")
+				tech.SetActiveState(false);
+			//Reset render mode to default
+			if (tech.GetName() == "PrimUnlit") tech.SetActiveState(true);
+			else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
+			else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+		}
+		pPrevSelectedPrim = nullptr;
+	}
+	pPickedPrim = nullptr;
+	pickedPrimGroupIdx = -1;
+	pickedPrimIdx = -1;
+	selectedPrimRenderMode = 0;
+
 	// clear old triangle indicator
 	pTriIndicator.reset();
 
@@ -762,26 +798,44 @@ void App::PerformPicking()
 		testModel(*pTileScene->GetDynamicModel());
 	}
 
-	for (auto& prim : primPreview)
+	// Test prim objects
+	for (int gi = 0; gi < (int)primPlaced.size(); gi++)
 	{
-		
-	}
-
-		
-	// Test tile and wall batches for quad measurement
-	pickedQuadMeasurement.reset();
-	if (pTileScene)
-	{
-		// Test tile batches
-		for (const auto& batch : pTileScene->GetBatches())
+		for (int pi = 0; pi < (int)primPlaced[gi].size(); pi++)
 		{
-			if (auto hit = batch->PickQuad(rayOrigin, rayDir))
+			auto& pd = primPlaced[gi][pi];
+			if (auto hit = pd->Intersect(rayOrigin, rayDir))
 			{
 				if (hit->second < bestDist)
 				{
 					bestDist = hit->second;
-					pickedQuadMeasurement = hit->first;
-					pPickedMesh = nullptr; // quad pick takes priority
+					pPickedPrim = pd.get();
+					pickedPrimGroupIdx = gi;
+					pickedPrimIdx = pi;
+					pPickedMesh = nullptr; // prim pick takes priority
+				}
+			}
+		}
+	}
+
+		
+	// Test tile and wall batches for quad measurement
+	if (!pPickedPrim)
+	{
+		pickedQuadMeasurement.reset();
+		if (pTileScene)
+		{
+			// Test tile batches
+			for (const auto& batch : pTileScene->GetBatches())
+			{
+				if (auto hit = batch->PickQuad(rayOrigin, rayDir))
+				{
+					if (hit->second < bestDist)
+					{
+						bestDist = hit->second;
+						pickedQuadMeasurement = hit->first;
+						pPickedMesh = nullptr;
+					}
 				}
 			}
 		}
@@ -801,6 +855,32 @@ void App::PerformPicking()
 					pPickedMesh = nullptr; // quad pick takes priority
 				}
 			}
+		}
+	}
+
+	//// Enable selection wireframe on picked prim
+	//if (pPickedPrim)
+	//{
+	//	for (auto& tech : pPickedPrim->GetTechniques())
+	//	{
+	//		if (tech.GetName() == "Selection")
+	//		{
+	//			tech.SetActiveState(true);
+	//		}
+	//	}
+	//	pPrevSelectedPrim = pPickedPrim;
+	//}
+
+	if (pickedPrimGroupIdx >= 0)
+	{
+		for (auto& pd : primPlaced[pickedPrimGroupIdx])
+		{
+			for (auto& tech : pd->GetTechniques())
+			{
+				if (tech.GetName() == "Wireframe")
+					tech.SetActiveState(true);
+			}
+			pPrevSelectedPrim = pPickedPrim;
 		}
 	}
 
@@ -828,56 +908,167 @@ void App::ShowPickingWindow()
 {
 	ImGui::Begin("Mesh Picker");
 
-	if (pPickedMesh == nullptr && !pickedQuadMeasurement.has_value())
+	if (pPickedMesh == nullptr && pPickedPrim == nullptr && !pickedQuadMeasurement.has_value())
 	{
 		ImGui::TextColored( {0.7f,0.7f, 0.7f, 1.0f}, "Left-click on a mesh to select it");
 		ImGui::Text("(cursor must be enabled)");
 	}
-	else if (pickedQuadMeasurement.has_value())
+	else if (pPickedPrim!=nullptr)
 	{
-		const auto& m = pickedQuadMeasurement.value();
-		ImGui::TextColored({ 1.0f, 1.0f, 0.3, 1.0f }, "Tile/Wall Measurement");
+		ImGui::TextColored({ 1.0f, 1.0f, 0.3, 1.0f }, "Selected Prim Object");
+		const auto pos = pPickedPrim->GetPosition();
+		ImGui::Text("Position: (%.3f, %.3f, %.3f)", pos.x, pos.y, pos.z);
+		ImGui::Text("Yaw: %.2f degrees", pPickedPrim->GetYaw() * 180.0f / 3.14159f);
+		ImGui::Text("Group %d, Index: %d", pickedPrimGroupIdx, pickedPrimIdx);
+
 		ImGui::Separator();
-		ImGui::Text("Width (v0-v1): %.4f", m.width);
-		ImGui::Text("Height (v1-v2): %.4f", m.height);
-		ImGui::Text("Diagonal (v0-v2): %.4f", m.diagonal0);
-		ImGui::Text("Diagonal (v0-v1): %.4f", m.diagonal1);
-		ImGui::Separator();
-		ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "Corners (world space):");
-		ImGui::Text("v0: (%.3f, %.3f, %.3f)", m.v0.x, m.v0.y, m.v0.z);
-		ImGui::Text("v1: (%.3f, %.3f, %.3f)", m.v1.x, m.v1.y, m.v1.z);
-		ImGui::Text("v2: (%.3f, %.3f, %.3f)", m.v2.x, m.v2.y, m.v2.z);	
-		ImGui::Text("v3: (%.3f, %.3f, %.3f)", m.v3.x, m.v3.y, m.v3.z);
-		ImGui::Separator();
-		float edgeV1V2 = m.height; // already computed as v1->v2 in wall, v0->v3 in tile
-		float edgeV2V3 = 0.0f;
+		ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "Render Mode");
 		{
-			float dx = m.v2.x - m.v3.x, dy = m.v2.y - m.v3.y, dz = m.v2.z - m.v3.z;
-			edgeV2V3 = std::sqrtf(dx * dx + dy * dy + dz * dz);
+			const char* renderModes[] = { "PrimUnlit", "ColorLit", "Wireframe" };
+			if (ImGui::Combo("Mode", &selectedPrimRenderMode, renderModes, IM_ARRAYSIZE(renderModes)))
+			{
+				for (auto& tech : pPickedPrim->GetTechniques())
+				{
+					if (tech.GetName() == "PrimUnlit") tech.SetActiveState(selectedPrimRenderMode == 0);
+					else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedPrimRenderMode == 1);
+					else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedPrimRenderMode == 2);
+				}
+			}
+
+			// Color Lit settings for prim
+			if (selectedPrimRenderMode == 1)
+			{
+				ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "ColorLit Settings");
+				static float primLightTint[3] = { 0.3f, 0.8f, 1.0f };
+				static float primLightIntensity = 1.0f;
+				static float primMatColor[3] = { 1.0f, 1.0f, 1.0f }; 
+				bool changed = false;
+				changed |= ImGui::ColorEdit3("Light Tint", primLightTint);
+				changed |= ImGui::SliderFloat("Intensity", &primLightIntensity, 0.0f, 10.0f);
+				changed |= ImGui::ColorEdit3("Material Color", primMatColor);
+
+				if (changed)
+				{
+					// Update the ColorLit technique's constant buffer with new values
+					if (pPickedMesh)
+					{
+						for (auto& tech : pPickedMesh->GetTechniques())
+						{
+							if (tech.GetName() != "ColorLit") continue;
+							for (auto& step : tech.GetSteps())
+							{
+								for (auto& bindable : step.GetBindables())
+								{
+									if (auto* pCbuf = dynamic_cast<Bind::CachingPixelConstantBufferEx*>(bindable.get()))
+									{
+										auto buf = pCbuf->GetBuffer();
+										buf["materialColor"] = DirectX::XMFLOAT4(primMatColor[0], primMatColor[1], primMatColor[2], 1.0f);
+										buf["lightTint"] = DirectX::XMFLOAT4(primLightTint[0], primLightTint[1], primLightTint[2], 1.0f);
+										buf["lightIntensity"] = primLightIntensity;
+										pCbuf->SetBuffer(buf);
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
-		float edgeV3V0 = 0.0f;
+		// Pulsating selection color
+		ImGui::Separator();
 		{
-			float dx = m.v3.x - m.v0.x, dy = m.v3.y - m.v0.y, dz = m.v3.z - m.v0.z;
-			edgeV3V0 = std::sqrtf(dx * dx + dy * dy + dz * dz);
+			static float pulseTime = 0.0f;
+			pulseTime += ImGui::GetIO().DeltaTime * 3.0f;
+			float pulse = 0.5f + 0.5f * std::sinf(pulseTime);
+			dx::XMFLOAT3 selColor = { pulse * 0.8f + 0.2f, pulse * 0.8f + 0.2f, 1.0f };
+
+			for (auto& tech : pPickedPrim->GetTechniques())
+			{
+				if (tech.GetName() != "Selection") continue;
+				for (auto& step : tech.GetSteps())
+				{
+					for (auto& bindable : step.GetBindables())
+					{
+						if (auto* pCbuf = dynamic_cast<Bind::CachingPixelConstantBufferEx*>(bindable.get()))
+						{
+							auto buf = pCbuf->GetBuffer();
+							buf["materialColor"] = selColor;
+							pCbuf->SetBuffer(buf);
+							break;
+						}
+					}
+				}
+			}
 		}
 
-		ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "All edges:");
-		ImGui::Text("v0-v1: %.4f", m.width);
-		ImGui::Text("v1-v2: %.4f", m.height);
-		ImGui::Text("v2-v3: %.4f", edgeV2V3);
-		ImGui::Text("v3-v0: %.4f", edgeV3V0);
-
-		if (std::abs(m.width - m.height) > 0.001f ||
-			std::abs(m.width - edgeV2V3) > 0.001f ||
-			std::abs(m.width - edgeV3V0) > 0.001f)
+		ImGui::Separator();
+		if (ImGui::Button("Deselect##prim"))
 		{
-			ImGui::TextColored({ 1.0f, 0.3f, 0.3f, 1.0f }, "! Edges are NOT equal !");
-		}
-		else
-		{
-			ImGui::TextColored({ 0.3f, 1.0f, 0.3f, 1.0f }, "Edges are equal");
+			if (pPrevSelectedPrim)
+			{
+				for (auto& tech : pPrevSelectedPrim->GetTechniques())
+				{
+					if (tech.GetName() == "Selection")
+						tech.SetActiveState(false);
+					//Reset render mode to default
+					if (tech.GetName() == "PrimUnlit") tech.SetActiveState(true);
+					else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
+					else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+				}
+				pPrevSelectedPrim = nullptr;
+			}
+			pPickedPrim = nullptr;
+			pickedPrimGroupIdx = -1;
+			pickedPrimIdx = -1;
+			selectedPrimRenderMode = 0;
 		}
 	}
+	//else if (pickedQuadMeasurement.has_value())
+	//{
+	//	const auto& m = pickedQuadMeasurement.value();
+	//	ImGui::TextColored({ 1.0f, 1.0f, 0.3, 1.0f }, "Tile/Wall Measurement");
+	//	ImGui::Separator();
+	//	ImGui::Text("Width (v0-v1): %.4f", m.width);
+	//	ImGui::Text("Height (v1-v2): %.4f", m.height);
+	//	ImGui::Text("Diagonal (v0-v2): %.4f", m.diagonal0);
+	//	ImGui::Text("Diagonal (v0-v1): %.4f", m.diagonal1);
+	//	ImGui::Separator();
+	//	ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "Corners (world space):");
+	//	ImGui::Text("v0: (%.3f, %.3f, %.3f)", m.v0.x, m.v0.y, m.v0.z);
+	//	ImGui::Text("v1: (%.3f, %.3f, %.3f)", m.v1.x, m.v1.y, m.v1.z);
+	//	ImGui::Text("v2: (%.3f, %.3f, %.3f)", m.v2.x, m.v2.y, m.v2.z);	
+	//	ImGui::Text("v3: (%.3f, %.3f, %.3f)", m.v3.x, m.v3.y, m.v3.z);
+	//	ImGui::Separator();
+	//	float edgeV1V2 = m.height; // already computed as v1->v2 in wall, v0->v3 in tile
+	//	float edgeV2V3 = 0.0f;
+	//	{
+	//		float dx = m.v2.x - m.v3.x, dy = m.v2.y - m.v3.y, dz = m.v2.z - m.v3.z;
+	//		edgeV2V3 = std::sqrtf(dx * dx + dy * dy + dz * dz);
+	//	}
+	//	float edgeV3V0 = 0.0f;
+	//	{
+	//		float dx = m.v3.x - m.v0.x, dy = m.v3.y - m.v0.y, dz = m.v3.z - m.v0.z;
+	//		edgeV3V0 = std::sqrtf(dx * dx + dy * dy + dz * dz);
+	//	}
+
+	//	ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "All edges:");
+	//	ImGui::Text("v0-v1: %.4f", m.width);
+	//	ImGui::Text("v1-v2: %.4f", m.height);
+	//	ImGui::Text("v2-v3: %.4f", edgeV2V3);
+	//	ImGui::Text("v3-v0: %.4f", edgeV3V0);
+
+	//	if (std::abs(m.width - m.height) > 0.001f ||
+	//		std::abs(m.width - edgeV2V3) > 0.001f ||
+	//		std::abs(m.width - edgeV3V0) > 0.001f)
+	//	{
+	//		ImGui::TextColored({ 1.0f, 0.3f, 0.3f, 1.0f }, "! Edges are NOT equal !");
+	//	}
+	//	else
+	//	{
+	//		ImGui::TextColored({ 0.3f, 1.0f, 0.3f, 1.0f }, "Edges are equal");
+	//	}
+	//}
 	else
 	{
 		//const size_t totalFaces = pPickedMesh->GetCpuIndices().size() / 3;
@@ -891,30 +1082,74 @@ void App::ShowPickingWindow()
 
 
 		ImGui::Separator();
-		//Wireframe toggle
+		
+		// == Render Mode selector ===
+		ImGui::TextColored({ 0.6f,1.0f, 0.6f, 1.0f }, "Render Mode");
 		{
-			if (ImGui::Checkbox("Show Wireframe", &showWireframe))
+			const char* renderModes[] = { "Default (Phong)", "Unlit", "ColorLit", "Wireframe" };
+			if (ImGui::Combo("Mode", &selectedRenderMode, renderModes, IM_ARRAYSIZE(renderModes)))
 			{
-				//Disable old wireframe mesh if different
-				if (pPrevWireframeMesh && pPrevWireframeMesh != pPickedMesh)
+
+				// Deactive previous mode on previous mesh if different
+				if (pPrevRenderModeMesh && pPrevRenderModeMesh != pPickedMesh)
 				{
-					for (auto& tech : pPrevWireframeMesh->GetTechniques())
+					// Reset previous mesh to default
+					for (auto& tech : pPrevRenderModeMesh->GetTechniques())
 					{
-						if (tech.GetName() == "Wireframe")
-						{
-							tech.SetActiveState(false);
-						}
+						if (tech.GetName() == "Phong") tech.SetActiveState(false);
+						else if (tech.GetName() == "Unlit") tech.SetActiveState(false);
+						else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
+						else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
 					}
 				}
 
+				// Apply selected mode to current mesh
 				for (auto& tech : pPickedMesh->GetTechniques())
 				{
-					if (tech.GetName() == "Wireframe")
+					if (tech.GetName() == "Phong") tech.SetActiveState(selectedRenderMode == 0);
+					else if (tech.GetName() == "Unlit") tech.SetActiveState(selectedRenderMode == 1);
+					else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedRenderMode == 2);
+					else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedRenderMode == 3);
+				}
+				pPrevRenderModeMesh = pPickedMesh;
+				showWireframe = (selectedRenderMode == 3);
+				pPrevWireframeMesh = showWireframe ? pPickedMesh : nullptr;
+			}
+			// ColorLit light settings (editable when ColorLit mode is active)
+			if (selectedRenderMode == 2)
+			{
+				ImGui::TextColored({ 0.8f,0.8f, 1.0f, 1.0f }, "ColorLit Settings");
+				static float lightTint[3] = { 0.3f, 0.8f, 1.0f };
+				static float lightIntensity = 2.0f;
+				static float matColor[3] = { 0.8f, 0.8f, 0.8f };
+				bool changed = false;
+				changed |= ImGui::ColorEdit3("Light Tint", lightTint);
+				changed |= ImGui::SliderFloat("Intensity", &lightIntensity, 0.0f, 10.0f);
+				changed |= ImGui::ColorEdit3("Material Color", matColor);
+
+				if (changed)
+				{
+					// Update the ColorLit technique's constant buffer with new values
+					for (auto& tech : pPickedMesh->GetTechniques())
 					{
-						tech.SetActiveState(showWireframe);
+						if (tech.GetName() != "ColorLit") continue;
+						for (auto& step : tech.GetSteps())
+						{
+							for (auto& bindable : step.GetBindables())
+							{
+								if (auto* pCbuf = dynamic_cast<Bind::CachingPixelConstantBufferEx*>(bindable.get()))
+								{
+									auto buf = pCbuf->GetBuffer();
+									buf["materialColor"] = DirectX::XMFLOAT4(matColor[0], matColor[1], matColor[2], 1.0f);
+									buf["lightTint"] = DirectX::XMFLOAT4(lightTint[0], lightTint[1], lightTint[2], 1.0f);
+									buf["lightIntensity"] = lightIntensity;
+									pCbuf->SetBuffer(buf);
+									break;
+								}
+							}
+						}
 					}
 				}
-				pPrevWireframeMesh = showWireframe ? pPickedMesh : nullptr;
 			}
 		}
 
@@ -922,40 +1157,43 @@ void App::ShowPickingWindow()
 		ImGui::TextColored({ 0.4f,1.0f, 0.6f, 1.0f }, "Textures");
 
 		// Find and display current textures for the Phon technique
-		for (auto& tech : pPickedMesh->GetTechniques())
+		if (pPickedMesh)
 		{
-
-			if (tech.GetName() != "Phong")
+			for (auto& tech : pPickedMesh->GetTechniques())
 			{
-				continue;
-			}
 
-			for (auto& step : tech.GetSteps())
-			{
-				for (size_t i = 0; i < step.GetBindables().size(); i++)
+				if (tech.GetName() != "Phong")
 				{
-					auto& bindable = step.GetBindables()[i];
-					if (auto* pTex = dynamic_cast<Bind::Texture*>(bindable.get()))
+					continue;
+				}
+
+				for (auto& step : tech.GetSteps())
+				{
+					for (size_t i = 0; i < step.GetBindables().size(); i++)
 					{
-						const char* slotNames[] = { "Diffuse", "Specular", "Normal" };
-						UINT slot = pTex->GetSlot();
-						const char* slotName = (slot < 3) ? slotNames[slot] : "Unknown";
-
-						ImGui::PushID((int)i);
-						ImGui::Text("%s: %s", slotName, pTex->GetPath().c_str());
-
-						std::string btnLabel = std::string("Change") + slotName + "...";
-						if (ImGui::Button(btnLabel.c_str()))
+						auto& bindable = step.GetBindables()[i];
+						if (auto* pTex = dynamic_cast<Bind::Texture*>(bindable.get()))
 						{
-							const auto newPath = OpenTextureFileDialog();
-							if (!newPath.empty())
+							const char* slotNames[] = { "Diffuse", "Specular", "Normal" };
+							UINT slot = pTex->GetSlot();
+							const char* slotName = (slot < 3) ? slotNames[slot] : "Unknown";
+
+							ImGui::PushID((int)i);
+							ImGui::Text("%s: %s", slotName, pTex->GetPath().c_str());
+
+							std::string btnLabel = std::string("Change") + slotName + "...";
+							if (ImGui::Button(btnLabel.c_str()))
 							{
-								// Replace the texture bindable with a new one
-								auto nextTex = std::make_shared<Bind::Texture>(wnd.Gfx(), newPath, slot);
-								step.GetBindables()[i] = std::move(nextTex)	;
+								const auto newPath = OpenTextureFileDialog();
+								if (!newPath.empty())
+								{
+									// Replace the texture bindable with a new one
+									auto nextTex = std::make_shared<Bind::Texture>(wnd.Gfx(), newPath, slot);
+									step.GetBindables()[i] = std::move(nextTex);
+								}
 							}
+							ImGui::PopID();
 						}
-						ImGui::PopID();
 					}
 				}
 			}
@@ -965,6 +1203,20 @@ void App::ShowPickingWindow()
 	ImGui::Separator();
 	if (ImGui::Button("Deselect"))
 	{
+		// Rest render mode on current mesh
+		if (pPrevRenderModeMesh)
+		{
+			for (auto& tech : pPrevRenderModeMesh->GetTechniques())
+			{
+				if (tech.GetName() == "Phong") tech.SetActiveState(false);
+				else if (tech.GetName() == "Unlit") tech.SetActiveState(false);
+				else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
+				else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+			}
+			pPrevRenderModeMesh = nullptr;
+			selectedRenderMode = 0;
+		}
+
 		if (pPrevWireframeMesh)
 		{
 			for (auto& tech : pPrevWireframeMesh->GetTechniques())
@@ -977,6 +1229,7 @@ void App::ShowPickingWindow()
 			pPrevWireframeMesh = nullptr;
 		}
 		showWireframe = false;
+		selectedRenderMode = 0;
 		pPickedMesh = nullptr;
 		pTriIndicator.reset();
 	}

@@ -91,7 +91,16 @@ private:
 	size_t pickedFaceIndex = 0;
 	float pickedDistance = 0.0f;
 	Mesh* pPrevWireframeMesh = nullptr;
+	Mesh* pPrevRenderModeMesh = nullptr;
 	bool showWireframe = false;
+	int selectedRenderMode = 0; // 0=Phong, 1=Unlit, 2=ColorLit, 3=Wireframe
+
+	// Prim picking state
+	PrimDrawable* pPickedPrim = nullptr;
+	int pickedPrimGroupIdx = -1;
+	int pickedPrimIdx = -1;
+	PrimDrawable* pPrevSelectedPrim = nullptr;
+	int selectedPrimRenderMode = 0;
 	std::unique_ptr<TriangleIndicator> pTriIndicator;
 	UVEditorWindow uvEditor;
 	std::vector<std::unique_ptr<TexturedTriangleOverlay>> texturedOverlays;

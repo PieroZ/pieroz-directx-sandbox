@@ -3,5 +3,8 @@ SamplerState splr : register(s0);
 
 float4 main(float2 tc : Texcoord) : SV_Target
 {
-    return tex.Sample(splr, tc);
+    float4 color = tex.Sample(splr, tc);
+    clip(color.a - 0.1f);
+    return color;
+    //return tex.Sample(splr, tc);
 }
