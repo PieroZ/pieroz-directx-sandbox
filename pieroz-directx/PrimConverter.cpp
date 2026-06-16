@@ -37,138 +37,238 @@ namespace
 }
 
 std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
-	const PrimLoadResult& prim,
-	float scale)
+    const PrimLoadResult& prim,
+    float scale)
 {
-	using Dvtx::VertexLayout;
+    using Dvtx::VertexLayout;
 
-	// Per-texture group: accumulate vertices and indices separately
-	struct TriListBuilder
-	{
-		Dvtx::VertexBuffer vbuf;
-		std::vector<unsigned short> indices;
-		TriListBuilder(Dvtx::VertexLayout layout)
-			: vbuf(std::move(layout)) {}
-	};
+    // Per-texture group: accumulate vertices and indices separately
+    struct TriListBuilder
+    {
+        Dvtx::VertexBuffer vbuf;
+        std::vector<unsigned short> indices;
 
-	auto makeLayout = [] {
-		return VertexLayout{}
-			.Append(VertexLayout::Position3D)
-			.Append(VertexLayout::Normal)
-			.Append(VertexLayout::Texture2D);
-		};
+        TriListBuilder(Dvtx::VertexLayout layout)
+            : vbuf(std::move(layout))
+        {}
+    };
 
-	std::map<int, std::unique_ptr<TriListBuilder>> builders;
+    auto makeLayout = [] {
+        return VertexLayout{}
+            .Append(VertexLayout::Position3D)
+            .Append(VertexLayout::Normal)
+            .Append(VertexLayout::Texture2D);
+        };
 
-	const dx::XMFLOAT3 defaultNormal{ 0.0f, 1.0f, 0.0f };
+    std::map<int, std::unique_ptr<TriListBuilder>> builders;
 
-	auto getPoint = [&](std::uint16_t idx) -> dx::XMFLOAT3
-		{
-			if (idx >= prim.points.size())
-			{
-				throw std::runtime_error("Prim face reference invalid point index: " + std::to_string(idx));
-			}
-			const auto& p = prim.points[idx];
+    auto getPoint = [&](std::uint16_t idx) -> dx::XMFLOAT3
+        {
+            if (idx >= prim.points.size())
+            {
+                throw std::runtime_error(
+                    "Prim face reference invalid point index: " +
+                    std::to_string(idx));
+            }
 
-			return {
-				static_cast<float>(p.Z) * scale,
-				static_cast<float>(p.Y) * scale,
-				static_cast<float>(p.X) * scale,
-			};
-		};
+            const auto& p = prim.points[idx];
 
-	auto getOrCreateBuilder = [&](int texImgNo) -> TriListBuilder&
-		{
-			auto it = builders.find(texImgNo);
-			if (it == builders.end())
-			{
-				auto [inserted, _] = builders.emplace(texImgNo, std::make_unique<TriListBuilder>(makeLayout()));
-				return *inserted->second;
-			}
-			return *it->second;
-		};
+            return {
+                static_cast<float>(p.Z) * scale,
+                static_cast<float>(p.Y) * scale,
+                static_cast<float>(p.X) * scale,
+            };
+        };
 
+    auto calcFaceNormal = [](const dx::XMFLOAT3& p0,
+        const dx::XMFLOAT3& p1,
+        const dx::XMFLOAT3& p2)
+        {
+            using namespace DirectX;
 
-	// Process PrimFace3 ( triangles )
-	for (const auto& f : prim.faces3)
-	{
-		int av_u = calcAvUvTriangle(f.UV[0][0], f.UV[1][0], f.UV[2][0]);
-		int av_v = calcAvUvTriangle(f.UV[0][1], f.UV[1][1], f.UV[2][1]);
-		int av_u_tile = av_u / TEXTURE_NORM_SIZE;
-		int av_v_tile = av_v / TEXTURE_NORM_SIZE;
-		int base_u = av_u_tile * TEXTURE_NORM_SIZE;
-		int base_v = av_v_tile * TEXTURE_NORM_SIZE;
+            const auto v0 = XMLoadFloat3(&p0);
+            const auto v1 = XMLoadFloat3(&p1);
+            const auto v2 = XMLoadFloat3(&p2);
 
-		int texImgNo = calcTextureImgNo(av_u_tile, av_v_tile, f.TexturePage);
+            const auto e1 = XMVectorSubtract(v1, v0);
+            const auto e2 = XMVectorSubtract(v2, v0);
 
-		auto& builder = getOrCreateBuilder(texImgNo);
-		const auto baseIdx = static_cast<unsigned short>(builder.vbuf.Size());
+            const auto n = XMVector3Normalize(
+                XMVector3Cross(e1, e2));
 
-		for (int v = 0; v < 3; v++)
-		{
-			float final_u = calcFinalUV(f.UV[v][0], base_u);
-			float final_v = calcFinalUV(f.UV[v][1], base_v);
+            dx::XMFLOAT3 result;
+            XMStoreFloat3(&result, n);
 
-			builder.vbuf.EmplaceBack(
-				getPoint(f.Points[v]),
-				defaultNormal,
-				dx::XMFLOAT2{ final_u, final_v }
-			);
-		}
+            return result;
+        };
 
-		builder.indices.push_back(baseIdx + 0);
-		builder.indices.push_back(baseIdx + 1);
-		builder.indices.push_back(baseIdx + 2);
-	}
+    auto getOrCreateBuilder = [&](int texImgNo) -> TriListBuilder&
+        {
+            auto it = builders.find(texImgNo);
 
-	// Process PrimFace4 ( quads -> 2 triangles each)
-	for (const auto& f : prim.faces4)
-	{
-		int av_u = calcAvUvQuad(f.UV[0][0], f.UV[1][0], f.UV[2][0], f.UV[3][0]);
-		int av_v = calcAvUvQuad(f.UV[0][1], f.UV[1][1], f.UV[2][1], f.UV[3][1]);
-		int av_u_tile = av_u / TEXTURE_NORM_SIZE;
-		int av_v_tile = av_v / TEXTURE_NORM_SIZE;
-		int base_u = av_u_tile * TEXTURE_NORM_SIZE;
-		int base_v = av_v_tile * TEXTURE_NORM_SIZE;
+            if (it == builders.end())
+            {
+                auto [inserted, _] =
+                    builders.emplace(
+                        texImgNo,
+                        std::make_unique<TriListBuilder>(makeLayout()));
 
-		int texImgNo = calcTextureImgNo(av_u_tile, av_v_tile, f.TexturePage);
+                return *inserted->second;
+            }
 
-		auto& builder = getOrCreateBuilder(texImgNo);
-		const auto baseIdx = static_cast<unsigned short>(builder.vbuf.Size());
+            return *it->second;
+        };
 
-		for (int v = 0; v < 4; v++)
-		{
-			float final_u = calcFinalUV(f.UV[v][0], base_u);
-			float final_v = calcFinalUV(f.UV[v][1], base_v);
+    //
+    // PrimFace3 (triangles)
+    //
+    for (const auto& f : prim.faces3)
+    {
+        int av_u = calcAvUvTriangle(
+            f.UV[0][0], f.UV[1][0], f.UV[2][0]);
 
-			builder.vbuf.EmplaceBack(
-				getPoint(f.Points[v]),
-				defaultNormal,
-				dx::XMFLOAT2{ final_u, final_v }
-			);
-		}
-		// Triangle 1: (0,3,1)
-		builder.indices.push_back(baseIdx + 0);
-		builder.indices.push_back(baseIdx + 1);
-		builder.indices.push_back(baseIdx + 3);
-		// Triangle 2: (0,2,3)
-		builder.indices.push_back(baseIdx + 0);
-		builder.indices.push_back(baseIdx + 3);
-		builder.indices.push_back(baseIdx + 2);
-	}
+        int av_v = calcAvUvTriangle(
+            f.UV[0][1], f.UV[1][1], f.UV[2][1]);
 
+        int av_u_tile = av_u / TEXTURE_NORM_SIZE;
+        int av_v_tile = av_v / TEXTURE_NORM_SIZE;
 
-	// Convert builder to result map
-	std::map<int, IndexedTriangleList> result;
-	for (auto& [texImgNo, builder] : builders)
-	{
-		if (builder->vbuf.Size() >= 3)
-		{
-			result.emplace(texImgNo, IndexedTriangleList(std::move(builder->vbuf), std::move(builder->indices)));
-		}
-	}
+        int base_u = av_u_tile * TEXTURE_NORM_SIZE;
+        int base_v = av_v_tile * TEXTURE_NORM_SIZE;
 
-	return result;
+        int texImgNo =
+            calcTextureImgNo(
+                av_u_tile,
+                av_v_tile,
+                f.TexturePage);
+
+        auto& builder = getOrCreateBuilder(texImgNo);
+
+        const auto baseIdx =
+            static_cast<unsigned short>(builder.vbuf.Size());
+
+        const auto p0 = getPoint(f.Points[0]);
+        const auto p1 = getPoint(f.Points[1]);
+        const auto p2 = getPoint(f.Points[2]);
+
+        const auto normal =
+            calcFaceNormal(p0, p1, p2);
+
+        for (int v = 0; v < 3; v++)
+        {
+            float final_u =
+                calcFinalUV(f.UV[v][0], base_u);
+
+            float final_v =
+                calcFinalUV(f.UV[v][1], base_v);
+
+            const auto pos =
+                (v == 0) ? p0 :
+                (v == 1) ? p1 :
+                p2;
+
+            builder.vbuf.EmplaceBack(
+                pos,
+                normal,
+                dx::XMFLOAT2{ final_u, final_v });
+        }
+
+        builder.indices.push_back(baseIdx + 0);
+        builder.indices.push_back(baseIdx + 1);
+        builder.indices.push_back(baseIdx + 2);
+    }
+
+    //
+    // PrimFace4 (quads)
+    //
+    for (const auto& f : prim.faces4)
+    {
+        int av_u = calcAvUvQuad(
+            f.UV[0][0],
+            f.UV[1][0],
+            f.UV[2][0],
+            f.UV[3][0]);
+
+        int av_v = calcAvUvQuad(
+            f.UV[0][1],
+            f.UV[1][1],
+            f.UV[2][1],
+            f.UV[3][1]);
+
+        int av_u_tile = av_u / TEXTURE_NORM_SIZE;
+        int av_v_tile = av_v / TEXTURE_NORM_SIZE;
+
+        int base_u = av_u_tile * TEXTURE_NORM_SIZE;
+        int base_v = av_v_tile * TEXTURE_NORM_SIZE;
+
+        int texImgNo =
+            calcTextureImgNo(
+                av_u_tile,
+                av_v_tile,
+                f.TexturePage);
+
+        auto& builder = getOrCreateBuilder(texImgNo);
+
+        const auto baseIdx =
+            static_cast<unsigned short>(builder.vbuf.Size());
+
+        const auto p0 = getPoint(f.Points[0]);
+        const auto p1 = getPoint(f.Points[1]);
+        const auto p2 = getPoint(f.Points[2]);
+        const auto p3 = getPoint(f.Points[3]);
+
+        const auto normal =
+            calcFaceNormal(p0, p1, p2);
+
+        for (int v = 0; v < 4; v++)
+        {
+            float final_u =
+                calcFinalUV(f.UV[v][0], base_u);
+
+            float final_v =
+                calcFinalUV(f.UV[v][1], base_v);
+
+            const auto pos =
+                (v == 0) ? p0 :
+                (v == 1) ? p1 :
+                (v == 2) ? p2 :
+                p3;
+
+            builder.vbuf.EmplaceBack(
+                pos,
+                normal,
+                dx::XMFLOAT2{ final_u, final_v });
+        }
+
+        // Triangle 1: (0,1,3)
+        builder.indices.push_back(baseIdx + 0);
+        builder.indices.push_back(baseIdx + 1);
+        builder.indices.push_back(baseIdx + 3);
+
+        // Triangle 2: (0,3,2)
+        builder.indices.push_back(baseIdx + 0);
+        builder.indices.push_back(baseIdx + 3);
+        builder.indices.push_back(baseIdx + 2);
+    }
+
+    //
+    // Build final result
+    //
+    std::map<int, IndexedTriangleList> result;
+
+    for (auto& [texImgNo, builder] : builders)
+    {
+        if (builder->vbuf.Size() >= 3)
+        {
+            result.emplace(
+                texImgNo,
+                IndexedTriangleList(
+                    std::move(builder->vbuf),
+                    std::move(builder->indices)));
+        }
+    }
+
+    return result;
 }
 
 std::string GetPrimTexturePath(int textureImgNo)

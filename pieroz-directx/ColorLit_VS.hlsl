@@ -1,0 +1,25 @@
+#include "Transform.hlsli"
+
+struct VSOut
+{
+    float3 viewPos : Position;
+    float3 viewNormal : Normal;
+    float2 tc : Texcoord;
+    float4 pos : SV_Position;
+};
+
+VSOut main(
+    float3 pos : Position,
+    float3 n : Normal,
+    float2 tc : Texcoord
+)
+{
+    VSOut vso;
+
+    vso.viewPos = (float3)mul(float4(pos,1), modelView);
+    vso.viewNormal = mul(n,(float3x3)modelView);
+    vso.tc = tc;
+    vso.pos = mul(float4(pos,1), modelViewProj);
+
+    return vso;
+}

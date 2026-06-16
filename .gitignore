@@ -270,3 +270,4 @@ __pycache__/
 
 # UC data
 *.prm
+*.iam
