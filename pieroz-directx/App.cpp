@@ -111,6 +111,10 @@ App::App( const std::string& commandLine, SceneType scene )
 		// -- Tile map scene: flat grid , unlit, no shadows ---
 		pUnlitRg = std::make_unique<Rgph::UnlitRenderGraph>(wnd.Gfx());
 
+
+		// Point light so lit rendeer modes ColorLit have valid lightdata
+		pLight = std::make_unique<PointLight>(wnd.Gfx(), dx::XMFLOAT3{ 5.0f, 15.0f, -5.0f });
+
 		cameras.AddCamera(std::make_unique<Camera>(wnd.Gfx(), "TileCamera", 
 			dx::XMFLOAT3{ 5.0f, 10.0f, -5.0f }, PI / 4.0f, PI / 4.0f ));
 
@@ -368,6 +372,13 @@ void App::DoFrameDefault(float dt)
 
 void App::DoFrameTileMap(float dt)
 {
+	
+	// Bind the point light cbuffer(register b0) so lit techniques like ColorLit receive valid light color/intensity data
+	if (pLight)
+	{
+		pLight->Bind(wnd.Gfx(), cameras->GetMatrix());
+	}
+
 	pUnlitRg->BindMainCamera(cameras.GetActiveCamera());
 
 	const size_t submittedTiles = pTileScene->Submit(Chan::main);
@@ -935,11 +946,14 @@ void App::ShowPickingWindow()
 
 				if (pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlaced.size())
 				{
-					for (auto& tech : pPickedPrim->GetTechniques())
+					for (auto& pd : primPlaced[pickedPrimGroupIdx])
 					{
-						if (tech.GetName() == "PrimUnlit") tech.SetActiveState(selectedPrimRenderMode == 0);
-						else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedPrimRenderMode == 1);
-						else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedPrimRenderMode == 2);
+						for (auto& tech : pd->GetTechniques())
+						{
+							if (tech.GetName() == "PrimUnlit") tech.SetActiveState(selectedPrimRenderMode == 0);
+							else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedPrimRenderMode == 1);
+							else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedPrimRenderMode == 2);
+						}
 					}
 				}
 			}
@@ -1113,16 +1127,19 @@ void App::ShowPickingWindow()
 				}
 
 				// Apply selected mode to current mesh
-				for (auto& tech : pPickedMesh->GetTechniques())
+				if (pPickedMesh)
 				{
-					if (tech.GetName() == "Phong") tech.SetActiveState(selectedRenderMode == 0);
-					else if (tech.GetName() == "Unlit") tech.SetActiveState(selectedRenderMode == 1);
-					else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedRenderMode == 2);
-					else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedRenderMode == 3);
+					for (auto& tech : pPickedMesh->GetTechniques())
+					{
+						if (tech.GetName() == "Phong") tech.SetActiveState(selectedRenderMode == 0);
+						else if (tech.GetName() == "Unlit") tech.SetActiveState(selectedRenderMode == 1);
+						else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedRenderMode == 2);
+						else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedRenderMode == 3);
+					}
+					pPrevRenderModeMesh = pPickedMesh;
+					showWireframe = (selectedRenderMode == 3);
+					pPrevWireframeMesh = showWireframe ? pPickedMesh : nullptr;
 				}
-				pPrevRenderModeMesh = pPickedMesh;
-				showWireframe = (selectedRenderMode == 3);
-				pPrevWireframeMesh = showWireframe ? pPickedMesh : nullptr;
 			}
 			// ColorLit light settings (editable when ColorLit mode is active)
 			if (selectedRenderMode == 2)

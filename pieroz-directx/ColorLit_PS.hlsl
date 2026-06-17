@@ -35,18 +35,14 @@ float4 main(
     // Attenuation
     const float att =
         Attenuate(attConst, attLin, attQuad, lv.distToL);
+    
+    const float ndl = max(0.0f, dot(lv.dirToL, viewNormal));
+    
+    const float3 coloredLight =
+    lightTint * lightTintIntensity *
+    (ambient + diffuseColor * diffuseIntensity * att * ndl);
 
-    // Colored light: combine the scene point light color/intensity with the 
-    // user-controllable tint so the model reacts to the actual light color
-    const float3 lightColor =
-        diffuseColor * diffuseIntensity * lightTint * lightTintIntensity;
-
-    // Diffuse
-    const float3 diffuse =
-        lightColor * att *
-        max(0.0f, dot(lv.dirToL, viewNormal));
-
-    // Specular
+    // Specular highlight using the same colored light
     const float3 viewDir =
         normalize(-viewFragPos);
 
@@ -57,12 +53,15 @@ float4 main(
         pow(max(0.0f, dot(viewNormal, halfDir)), 32.0f);
 
     const float3 specular =
-        lightColor * att * specFactor * 0.4f;
+    diffuseColor * diffuseIntensity *
+    lightTint * lightTintIntensity *
+    att * specFactor * 0.4f;
 
     // Albedo comes from the texture, optionally tinted by the material color
     const float3 albedo = texColor.rgb * materialColor;
 
-    const float3 finalColor = albedo + diffuse + specular;
+    //const float3 finalColor = albedo * (1.0f + coloredLight) + specular;
+    const float3 finalColor = albedo * coloredLight + specular;
     
     // Texture modulated by lighting
     return float4(finalColor, texColor.a);
