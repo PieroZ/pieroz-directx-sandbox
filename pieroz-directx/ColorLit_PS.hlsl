@@ -36,9 +36,10 @@ float4 main(
     const float att =
         Attenuate(attConst, attLin, attQuad, lv.distToL);
 
-    // Colored light
+    // Colored light: combine the scene point light color/intensity with the 
+    // user-controllable tint so the model reacts to the actual light color
     const float3 lightColor =
-        lightTint * lightTintIntensity;
+        diffuseColor * diffuseIntensity * lightTint * lightTintIntensity;
 
     // Diffuse
     const float3 diffuse =
@@ -58,11 +59,11 @@ float4 main(
     const float3 specular =
         lightColor * att * specFactor * 0.4f;
 
-    // Final lighting
-    const float3 lighting =
-        (diffuse + ambient) * materialColor +
-        specular;
+    // Albedo comes from the texture, optionally tinted by the material color
+    const float3 albedo = texColor.rgb * materialColor;
 
+    const float3 finalColor = albedo + diffuse + specular;
+    
     // Texture modulated by lighting
-    return float4(ambient.rgb, 1.0f);
+    return float4(finalColor, texColor.a);
 }

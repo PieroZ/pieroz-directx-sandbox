@@ -100,6 +100,7 @@ private:
 	int pickedPrimGroupIdx = -1;
 	int pickedPrimIdx = -1;
 	PrimDrawable* pPrevSelectedPrim = nullptr;
+	int pPrevSelectedPrimGroupIdx = -1;
 	int selectedPrimRenderMode = 0;
 	std::unique_ptr<TriangleIndicator> pTriIndicator;
 	UVEditorWindow uvEditor;

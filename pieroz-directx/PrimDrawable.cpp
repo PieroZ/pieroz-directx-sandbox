@@ -62,6 +62,10 @@ PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std
 		step.AddBindable(std::move(pvs));
 		step.AddBindable(PixelShader::Resolve(gfx, "ColorLit_PS.cso"));
 
+
+		// Diffuse texture (slot 0) + sampler so the prim keeps its textures
+		step.AddBindable(Bind::Texture::Resolve(gfx,texturePath, 0u));
+		step.AddBindable(Sampler::Resolve(gfx));
 		// Material + light tint parameters
 		{
 			Dcb::RawLayout lay;

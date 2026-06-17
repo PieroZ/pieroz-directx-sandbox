@@ -746,19 +746,23 @@ void App::PerformPicking()
 	selectedRenderMode = 0;
 
 	// Deselect previously selected prim
-	if (pPrevSelectedPrim)
+	if (pPrevSelectedPrimGroupIdx >= 0 && pPrevSelectedPrimGroupIdx< (int)primPlaced.size())
 	{
-		for (auto& tech : pPrevSelectedPrim->GetTechniques())
+		for (auto& pd : primPlaced[pPrevSelectedPrimGroupIdx])
 		{
-			if (tech.GetName() == "Selection")
-				tech.SetActiveState(false);
-			//Reset render mode to default
-			if (tech.GetName() == "PrimUnlit") tech.SetActiveState(true);
-			else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
-			else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+			for (auto& tech : pd->GetTechniques())
+			{
+				if (tech.GetName() == "Selection")
+					tech.SetActiveState(false);
+				//Reset render mode to default
+				if (tech.GetName() == "PrimUnlit") tech.SetActiveState(true);
+				else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
+				else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+			}
 		}
-		pPrevSelectedPrim = nullptr;
 	}
+	pPrevSelectedPrim = nullptr;
+	pPrevSelectedPrimGroupIdx = -1;
 	pPickedPrim = nullptr;
 	pickedPrimGroupIdx = -1;
 	pickedPrimIdx = -1;
@@ -880,8 +884,9 @@ void App::PerformPicking()
 				if (tech.GetName() == "Wireframe")
 					tech.SetActiveState(true);
 			}
-			pPrevSelectedPrim = pPickedPrim;
 		}
+		pPrevSelectedPrim = pPickedPrim;
+		pPrevSelectedPrimGroupIdx = pickedPrimGroupIdx;
 	}
 
 	// Build single-triangle indicator for the picked face
@@ -927,11 +932,15 @@ void App::ShowPickingWindow()
 			const char* renderModes[] = { "PrimUnlit", "ColorLit", "Wireframe" };
 			if (ImGui::Combo("Mode", &selectedPrimRenderMode, renderModes, IM_ARRAYSIZE(renderModes)))
 			{
-				for (auto& tech : pPickedPrim->GetTechniques())
+
+				if (pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlaced.size())
 				{
-					if (tech.GetName() == "PrimUnlit") tech.SetActiveState(selectedPrimRenderMode == 0);
-					else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedPrimRenderMode == 1);
-					else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedPrimRenderMode == 2);
+					for (auto& tech : pPickedPrim->GetTechniques())
+					{
+						if (tech.GetName() == "PrimUnlit") tech.SetActiveState(selectedPrimRenderMode == 0);
+						else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedPrimRenderMode == 1);
+						else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedPrimRenderMode == 2);
+					}
 				}
 			}
 
@@ -947,12 +956,12 @@ void App::ShowPickingWindow()
 				changed |= ImGui::SliderFloat("Intensity", &primLightIntensity, 0.0f, 10.0f);
 				changed |= ImGui::ColorEdit3("Material Color", primMatColor);
 
-				if (changed)
+				if (changed && pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlaced.size())
 				{
 					// Update the ColorLit technique's constant buffer with new values
-					if (pPickedMesh)
+					for (auto& pd : primPlaced[pickedPrimGroupIdx])
 					{
-						for (auto& tech : pPickedMesh->GetTechniques())
+						for (auto& tech : pd->GetTechniques())
 						{
 							if (tech.GetName() != "ColorLit") continue;
 							for (auto& step : tech.GetSteps())
@@ -962,8 +971,8 @@ void App::ShowPickingWindow()
 									if (auto* pCbuf = dynamic_cast<Bind::CachingPixelConstantBufferEx*>(bindable.get()))
 									{
 										auto buf = pCbuf->GetBuffer();
-										buf["materialColor"] = DirectX::XMFLOAT4(primMatColor[0], primMatColor[1], primMatColor[2], 1.0f);
-										buf["lightTint"] = DirectX::XMFLOAT4(primLightTint[0], primLightTint[1], primLightTint[2], 1.0f);
+										buf["materialColor"] = DirectX::XMFLOAT3(primMatColor[0], primMatColor[1], primMatColor[2]);
+										buf["lightTint"] = DirectX::XMFLOAT3(primLightTint[0], primLightTint[1], primLightTint[2]);
 										buf["lightIntensity"] = primLightIntensity;
 										pCbuf->SetBuffer(buf);
 										break;
@@ -1140,8 +1149,8 @@ void App::ShowPickingWindow()
 								if (auto* pCbuf = dynamic_cast<Bind::CachingPixelConstantBufferEx*>(bindable.get()))
 								{
 									auto buf = pCbuf->GetBuffer();
-									buf["materialColor"] = DirectX::XMFLOAT4(matColor[0], matColor[1], matColor[2], 1.0f);
-									buf["lightTint"] = DirectX::XMFLOAT4(lightTint[0], lightTint[1], lightTint[2], 1.0f);
+									buf["materialColor"] = DirectX::XMFLOAT3(matColor[0], matColor[1], matColor[2]);
+									buf["lightTint"] = DirectX::XMFLOAT3(lightTint[0], lightTint[1], lightTint[2]);
 									buf["lightIntensity"] = lightIntensity;
 									pCbuf->SetBuffer(buf);
 									break;

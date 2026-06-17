@@ -225,6 +225,17 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 			step.AddBindable(std::move(pvs));
 			step.AddBindable(PixelShader::Resolve(gfx, "ColorLit_PS.cso"));
 
+			// Diffuse texture (slot 0 ) + sampler so the model keeps its textures
+			if (hasTexture)
+			{
+				aiString texFileName;
+				if (material.GetTexture(aiTextureType_DIFFUSE, 0, &texFileName) == aiReturn_SUCCESS)
+				{
+					step.AddBindable(Texture::Resolve(gfx, rootPath + texFileName.C_Str()));
+				}
+				step.AddBindable(Bind::Sampler::Resolve(gfx));
+			}
+
 			// Material + light tint parameters
 			{
 				Dcb::RawLayout lay;
