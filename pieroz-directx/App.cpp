@@ -128,6 +128,9 @@ App::App( const std::string& commandLine, SceneType scene )
 		// Light is a visible, movable scene objects that lights the tiles
 		pLight->LinkTechniques(*pUnlitRg);
 		pLight->SetPos(lightAnimCenter);
+
+		// Apply the initial global render mode to all tile drawables
+		ApplyGlobalRenderMode();
 	}
 
 	LoadWindowSettings();
@@ -468,6 +471,7 @@ void App::DoFrameTileMap(float dt)
 		{
 			primPlaced.push_back(std::move(primPreview));
 			primPreview.clear();
+			ApplyGlobalRenderMode();
 		}
 		else
 		{
@@ -538,15 +542,24 @@ void App::DoFrameTileMap(float dt)
 	// Scene light (animated lamp) controls
 	{
 		ImGui::Begin("Scene Light");
+
+		int litMode = sceneLitMode ? 0 : 1;
+		if (ImGui::Combo("Render Mode", &litMode, "Lit (lighting)\0Unlit (flat)\0"))
+		{
+			sceneLitMode = (litMode == 0);
+			ApplyGlobalRenderMode();
+		}
+		ImGui::Separator();
+
 		ImGui::Checkbox("Animate (oscillate)", &animateLight);
-		ImGui::Combo("sweep Axis", &lightAnimAxis, "X\0Z\0");
+		ImGui::Combo("Sweep Axis", &lightAnimAxis, "X\0Z\0");
 		ImGui::SliderFloat("Speed", &lightAnimSpeed, 0.0f, 3.0f, "%.2f");
 		ImGui::SliderFloat("Amplitude", &lightAnimAmplitude, 0.0f, 16.0f, "%.1f");
 		ImGui::DragFloat3("Center", &lightAnimCenter.x, 0.1f);
 		if (pLight)
 		{
 			const auto p = pLight->GetPos();
-			ImGui::Text("Light pos: %.1f, %.1f, %.1f", p.z, p.y, p.z);
+			ImGui::Text("Light pos: %.1f, %.1f, %.1f", p.x, p.y, p.z);
 		}
 		ImGui::End();
 	}
@@ -697,6 +710,8 @@ void App::ShowTileMapWindow()
 					// Skipp prims that fail to load
 				}
 			}
+
+			ApplyGlobalRenderMode();
 		}
 		catch (const std::exception& e)
 		{
@@ -818,9 +833,9 @@ void App::PerformPicking()
 			{
 				if (tech.GetName() == "Selection")
 					tech.SetActiveState(false);
-				//Reset render mode to default
-				if (tech.GetName() == "PrimUnlit") tech.SetActiveState(true);
-				else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
+				// Restore the global render mode
+				if (tech.GetName() == "PrimUnlit") tech.SetActiveState(!sceneLitMode);
+				else if (tech.GetName() == "ColorLit") tech.SetActiveState(sceneLitMode);
 				else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
 			}
 		}
@@ -1001,26 +1016,29 @@ void App::ShowPickingWindow()
 		ImGui::Separator();
 		ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "Render Mode");
 		{
-			const char* renderModes[] = { "PrimUnlit", "ColorLit", "Wireframe" };
-			if (ImGui::Combo("Mode", &selectedPrimRenderMode, renderModes, IM_ARRAYSIZE(renderModes)))
-			{
+			//const char* renderModes[] = { "PrimUnlit", "ColorLit", "Wireframe" };
+			//if (ImGui::Combo("Mode", &selectedPrimRenderMode, renderModes, IM_ARRAYSIZE(renderModes)))
+			//{
 
-				if (pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlaced.size())
-				{
-					for (auto& pd : primPlaced[pickedPrimGroupIdx])
-					{
-						for (auto& tech : pd->GetTechniques())
-						{
-							if (tech.GetName() == "PrimUnlit") tech.SetActiveState(selectedPrimRenderMode == 0);
-							else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedPrimRenderMode == 1);
-							else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedPrimRenderMode == 2);
-						}
-					}
-				}
-			}
+			//	if (pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlaced.size())
+			//	{
+			//		for (auto& pd : primPlaced[pickedPrimGroupIdx])
+			//		{
+			//			for (auto& tech : pd->GetTechniques())
+			//			{
+			//				if (tech.GetName() == "PrimUnlit") tech.SetActiveState(selectedPrimRenderMode == 0);
+			//				else if (tech.GetName() == "ColorLit") tech.SetActiveState(selectedPrimRenderMode == 1);
+			//				else if (tech.GetName() == "Wireframe") tech.SetActiveState(selectedPrimRenderMode == 2);
+			//			}
+			//		}
+			//	}
+			//}
+
+			// Lit/Unlit is driven globally
+			ImGui::TextDisabled("Lit/Unlit controlled globally (Scene Light: %s)", sceneLitMode ? "Lit" : "Unlit");
 
 			// Color Lit settings for prim
-			if (selectedPrimRenderMode == 1)
+			if (sceneLitMode)
 			{
 				ImGui::TextColored({ 0.6f, 0.8f, 1.0f, 1.0f }, "ColorLit Settings");
 				static float primLightTint[3] = { 0.3f, 0.8f, 1.0f };
@@ -1087,7 +1105,7 @@ void App::ShowPickingWindow()
 		}
 
 		ImGui::Separator();
-		ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0 }, "Debug");
+		ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0f }, "Debug");
 		{
 			bool changed = ImGui::Checkbox("Show Face Normals##prim", &showFaceNormals);
 			if (showFaceNormals)
@@ -1104,19 +1122,24 @@ void App::ShowPickingWindow()
 		ImGui::Separator();
 		if (ImGui::Button("Deselect##prim"))
 		{
-			if (pPrevSelectedPrim)
+			if (pPrevSelectedPrimGroupIdx >= 0 && pPrevSelectedPrimGroupIdx < (int)primPlaced.size())
 			{
-				for (auto& tech : pPrevSelectedPrim->GetTechniques())
+				for (auto& pd : primPlaced[pPrevSelectedPrimGroupIdx])
 				{
-					if (tech.GetName() == "Selection")
-						tech.SetActiveState(false);
-					//Reset render mode to default
-					if (tech.GetName() == "PrimUnlit") tech.SetActiveState(true);
-					else if (tech.GetName() == "ColorLit") tech.SetActiveState(false);
-					else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+					for (auto& tech : pd->GetTechniques())
+					{
+						if (tech.GetName() == "Selection")
+							tech.SetActiveState(false);
+						//Reset render mode to default
+						if (tech.GetName() == "PrimUnlit") tech.SetActiveState(!sceneLitMode);
+						else if (tech.GetName() == "ColorLit") tech.SetActiveState(sceneLitMode);
+						else if (tech.GetName() == "Wireframe") tech.SetActiveState(false);
+					}
 				}
-				pPrevSelectedPrim = nullptr;
 			}
+
+			pPrevSelectedPrim = nullptr;
+			pPrevSelectedPrimGroupIdx = -1;
 			pPickedPrim = nullptr;
 			pickedPrimGroupIdx = -1;
 			pickedPrimIdx = -1;
@@ -1303,7 +1326,7 @@ void App::ShowPickingWindow()
 		}
 
 		ImGui::Separator();
-		ImGui::TextColored({ 0.4,1.0f,0.6,1.0f }, "Debug");
+		ImGui::TextColored({ 0.4f,1.0f,0.6f,1.0f }, "Debug");
 		{
 			bool changed = ImGui::Checkbox("Show Face Normals", &showFaceNormals);
 			if (showFaceNormals)
@@ -1366,6 +1389,42 @@ void App::ShowPickingWindow()
 	//ImGui::End();
 }
 
+void App::ApplyGlobalRenderMode()
+{
+	if (pTileScene)
+	{
+		for (const auto& batch : pTileScene->GetBatches())
+		{
+			for (auto& tech : batch->GetTechniques())
+			{
+				if (tech.GetName() == "Lit") tech.SetActiveState(sceneLitMode);
+				else if (tech.GetName() == "Unlit") tech.SetActiveState(!sceneLitMode);
+			}
+		}
+	}
+
+	for (auto& wb : wallBatches)
+	{
+		for (auto& tech : wb->GetTechniques())
+		{
+			if (tech.GetName() == "Lit") tech.SetActiveState(sceneLitMode);
+			else if (tech.GetName() == "Unlit") tech.SetActiveState(!sceneLitMode);
+		}
+	}
+
+	for (auto& group : primPlaced)
+	{
+		for (auto& pd : group)
+		{
+			for (auto& tech : pd->GetTechniques())
+			{
+				if (tech.GetName() == "Lit") tech.SetActiveState(sceneLitMode);
+				else if (tech.GetName() == "Unlit") tech.SetActiveState(!sceneLitMode);
+			}
+		}
+	}
+}
+
 
 void App::RebuildNormalsIndicator()
 {
@@ -1415,7 +1474,7 @@ void App::RebuildNormalsIndicator()
 	}
 	else if (pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlaced.size())
 	{
-		// A prim is split into one PrimDrawable per texturel include the whole group
+		// A prim is split into one PrimDrawable per texture; include the whole group
 		for (auto& pd : primPlaced[pickedPrimGroupIdx])
 		{
 			appendFaces(pd->GetCpuPositions(), pd->GetCpuIndices(), pd->GetTransformXM());

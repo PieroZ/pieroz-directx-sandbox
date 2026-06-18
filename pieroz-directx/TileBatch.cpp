@@ -161,7 +161,27 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 	pIndices = std::make_shared<IndexBuffer>(gfx, tag, indices);
 	pTopology = Topology::Resolve(gfx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// Unlit textured technique
+	// Unlit textured technique 
+	{
+		Technique unlit{ "Unlit", Chan::main, false };
+		Step step("lambertian");
+
+		auto pvs = VertexShader::Resolve(gfx, "Unlit_VS.cso");
+		step.AddBindable(InputLayout::Resolve(gfx, vbuf.GetLayout(), *pvs));
+		step.AddBindable(std::move(pvs));
+		step.AddBindable(PixelShader::Resolve(gfx, "Unlit_PS.cso"));
+
+		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
+		step.AddBindable(Sampler::Resolve(gfx));
+		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
+		step.AddBindable(Rasterizer::Resolve(gfx, false, false, 1000, 1.0f));
+
+		unlit.AddStep(std::move(step));
+		AddTechnique(std::move(unlit));
+
+	}
+
+	// Lit textured technique
 	{
 		//Technique unlit{ "Unlit", Chan::main, true };
 		Technique lit{ "Lit", Chan::main, true };

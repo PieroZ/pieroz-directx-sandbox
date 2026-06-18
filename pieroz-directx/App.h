@@ -51,6 +51,7 @@ private:
 	void ShowPickingWindow();
 	void RebuildTexturedOverlays();
 	void RebuildNormalsIndicator();
+	void ApplyGlobalRenderMode();
 	void ShowExportWindow();
 	void ShowNprimImportWindow();
 	void ShowTileMapWindow();
@@ -129,6 +130,8 @@ private:
 	float lightAnimSpeed = 0.6f;
 	float lightAnimAmplitude = 9.0f;
 	DirectX::XMFLOAT3 lightAnimCenter = { 7.0f, 5.0f, 7.0f };
+
+	bool sceneLitMode = true;
 	// Tile/wall quad measurement (from picking)
 	std::optional<QuadMeasurement> pickedQuadMeasurement;
 	

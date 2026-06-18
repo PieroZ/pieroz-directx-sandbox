@@ -3,6 +3,8 @@
 #include "Vertex.h"
 #include "Channels.h"
 #include "TextureIdToFilenameHelper.h"
+#include "DynamicConstant.h"
+#include "ConstantBuffersEx.h"
 #include <DirectXCollision.h>
 #include <cmath>
 #include <unordered_map>
@@ -156,6 +158,44 @@ WallBatch::WallBatch(Graphics& gfx,
 
 		unlit.AddStep(std::move(step));
 		AddTechnique(std::move(unlit));
+	}
+
+	// Lit technique - reacts to the scene point light (register b0 in PS).
+	// Inactive by default; toggled by the global render-mode switch.
+	{
+		Technique lit{"Lit", Chan::main,false };
+		Step step("lambertian");
+
+		auto pvs = VertexShader::Resolve(gfx, "ColorLit_VS.cso");
+		step.AddBindable(InputLayout::Resolve(gfx, vbuf.GetLayout(), *pvs));
+		step.AddBindable(std::move(pvs));
+		step.AddBindable(PixelShader::Resolve(gfx, "ColorLit_PS.cso"));
+
+
+		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
+		step.AddBindable(Sampler::Resolve(gfx));
+
+		// Neutral material + white light tint so walls keep their texture and are lit by the actual scene light color/intensity
+		{
+			Dcb::RawLayout lay;
+			lay.Add<Dcb::Float3>("materialColor");
+			lay.Add<Dcb::Float>("padding0");
+			lay.Add<Dcb::Float3>("lightTint");
+			lay.Add<Dcb::Float>("lightIntensity");
+			Dcb::Buffer buf{ std::move(lay) };
+			buf["materialColor"] = dx::XMFLOAT3{ 1.0f,1.0f,1.0f };
+			buf["padding0"] = 0.0f;
+			buf["lightTint"] = dx::XMFLOAT3{ 1.0f,1.0f,1.0f };
+			buf["lightIntensity"] = 1.0f;
+			step.AddBindable(std::make_shared<Bind::CachingPixelConstantBufferEx>(gfx, std::move(buf), 1u));
+
+		}
+
+		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
+		step.AddBindable(Rasterizer::Resolve(gfx, false, false, 1000, 1.0f)); // no backface culling
+
+		lit.AddStep(std::move(step));
+		AddTechnique(std::move(lit));
 	}
 }
 
