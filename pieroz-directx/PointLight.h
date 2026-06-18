@@ -24,6 +24,8 @@ public:
 	// World-space positions accessors (used to anime the light as a scene object)
 	void SetPos(DirectX::XMFLOAT3 pos) noexcept;
 	DirectX::XMFLOAT3 GetPos() const noexcept;
+	void SetFlashLight(bool enabled, DirectX::XMFLOAT3 viewPos, DirectX::XMFLOAT3 viewDir,
+		DirectX::XMFLOAT3 color, float innerDeg, float outerDeg, float range, float intensity) noexcept;
 private:
 	struct PointLightCBuf
 	{
@@ -34,6 +36,16 @@ private:
 		float attConst;
 		float attLin;
 		float attQuad;
+
+		// Flashlight /spotlight (view space)
+		alignas(16) DirectX::XMFLOAT3 spotPos;
+		alignas(16) DirectX::XMFLOAT3 spotDir;
+		alignas(16) DirectX::XMFLOAT3 spotColor;
+		float spotInnerCos;
+		float spotOuterCos;
+		float spotRange;
+		float spotIntensity;
+		float spotEnabled;
 	};
 private:
 	PointLightCBuf home;

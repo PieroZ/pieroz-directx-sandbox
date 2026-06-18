@@ -107,6 +107,7 @@
     <ClCompile Include="ObjExporter.cpp" />
     <ClCompile Include="PrimConverter.cpp" />
     <ClCompile Include="PrimDrawable.cpp" />
+    <ClCompile Include="PrimLightRegistry.cpp" />
     <ClCompile Include="primLoader.cpp" />
     <ClCompile Include="ShadowCameraCBuf.cpp" />
     <ClCompile Include="CameraContainer.cpp" />
@@ -210,6 +211,7 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)\ShaderBins\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)\ShaderBins\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
+    <None Include="EmissiveLights.hlsli" />
     <None Include="LightVectorData.hlsli">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
@@ -370,6 +372,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="cnpy.h" />
     <ClInclude Include="CubeTexture.h" />
+    <ClInclude Include="EmissiveLightsCBuf.h" />
     <ClInclude Include="iam.h" />
     <ClInclude Include="iamLoader.h" />
     <ClInclude Include="iamToJson.h" />
@@ -380,6 +383,8 @@
     <ClInclude Include="Picking.h" />
     <ClInclude Include="PrimConverter.h" />
     <ClInclude Include="PrimDrawable.h" />
+    <ClInclude Include="PrimLightDef.h" />
+    <ClInclude Include="PrimLightRegistry.h" />
     <ClInclude Include="primLoader.h" />
     <ClInclude Include="ShadowCameraCBuf.h" />
     <ClInclude Include="CameraContainer.h" />

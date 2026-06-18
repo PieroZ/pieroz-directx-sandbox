@@ -26,10 +26,12 @@
 #include "SkyboxPass.h"
 #include "ConstantBuffersEx.h"
 #include "DynamicConstant.h"
+#include "PrimLightDef.h"
 
 #include <commdlg.h> // GetOpenFileName
 #include <array>
 #include <cmath>
+#include <cctype>
 #include <fstream>
 #include "json.hpp"
 
@@ -128,6 +130,12 @@ App::App( const std::string& commandLine, SceneType scene )
 		// Light is a visible, movable scene objects that lights the tiles
 		pLight->LinkTechniques(*pUnlitRg);
 		pLight->SetPos(lightAnimCenter);
+
+		// Emissive prim lights: GPU buffer (PS register b3) + persisted defitnions
+		pEmissiveLightsCbuf = std::make_unique<Bind::PixelConstantBuffer<EmissiveLightsCBuf>>(wnd.Gfx(), 3u);
+		try { primLightRegistry.Load(primLightRegistryPath); }
+		catch (const std::exception&) { /*start with a nempty registry*/ }
+		RebuildEmissiveLights();
 
 		// Apply the initial global render mode to all tile drawables
 		ApplyGlobalRenderMode();
@@ -404,8 +412,54 @@ void App::DoFrameTileMap(float dt)
 			lampPos.z += offset;
 		}
 		pLight->SetPos(lampPos);
+
+		//const float fyaw = flashlightYawOffset * (PI / 180.0f);
+		//const float fpitch = flashlightPitchOffset * (PI / 180.0f);
+		//const dx::XMFLOAT3 spotDir = {
+		//	std::sin(fyaw) * std::cos(fpitch),
+		//	std::sin(fpitch),
+		//	std::cos(fyaw) * std::cos(fpitch)
+		//};
+
+		dx::XMFLOAT3 spotDir;
+		if (flashlightFollowMouse)
+		{
+			const auto [mouseX, mouseY] = wnd.mouse.GetPos();
+			const float vpWidth = (float)wnd.Gfx().GetWidth();
+			const float vpHeight = (float)wnd.Gfx().GetHeight();
+			const float ndcX = 2.0f * (float)mouseX / vpWidth - 1.0f;
+			const float ndcY = 1.0f - 2.0f * (float)mouseY / vpHeight;
+			dx::XMFLOAT4X4  proj;
+			dx::XMStoreFloat4x4(&proj, cameras->GetProjection());
+			const float vx = (proj._11 != 0.0f) ? ndcX / proj._11 : 0.0f;
+			const float vy = (proj._22 != 0.0f) ? ndcY / proj._22 : 0.0f;
+			dx::XMStoreFloat3(&spotDir,
+				dx::XMVector3Normalize(dx::XMVectorSet(vx, vy, 1.0f, 0.0f)));
+		
+		}
+		else
+		{
+			const float fyaw = flashlightYawOffset * (PI / 180.0f);
+			const float fpitch = flashlightPitchOffset * (PI / 180.0f);
+			const dx::XMFLOAT3 spotDir = {
+				std::sin(fyaw) * std::cos(fpitch),
+				std::sin(fpitch),
+				std::cos(fyaw) * std::cos(fpitch)
+			};
+		}
+		pLight->SetFlashLight(
+			flashlightEnabled,
+			flashlightPosOffset,
+			spotDir,
+			dx::XMFLOAT3{ flashlightColor[0],flashlightColor[1] ,flashlightColor[2] },
+			flashlightInnerDeg, flashlightOuterDeg,
+			flashlightRange, flashlightIntensity);
+
 		pLight->Bind(wnd.Gfx(), cameras->GetMatrix());
 	}
+
+	// Upload emissive prim lights9lamps ) in the view space for the lit techniques
+	BindEmissiveLights(cameras->GetMatrix());
 
 	pUnlitRg->BindMainCamera(cameras.GetActiveCamera());
 
@@ -470,8 +524,10 @@ void App::DoFrameTileMap(float dt)
 		if (wnd.mouse.LeftIsPressed())
 		{
 			primPlaced.push_back(std::move(primPreview));
+			primPlacedIndices.push_back(primPreviewIndex);
 			primPreview.clear();
 			ApplyGlobalRenderMode();
+			RebuildEmissiveLights();
 		}
 		else
 		{
@@ -561,6 +617,18 @@ void App::DoFrameTileMap(float dt)
 			const auto p = pLight->GetPos();
 			ImGui::Text("Light pos: %.1f, %.1f, %.1f", p.x, p.y, p.z);
 		}
+
+		ImGui::Separator();
+		ImGui::TextColored({ 1.0f,0.9f,0.4f,1.0f }, "Flashlight (observer torch)");
+		ImGui::Checkbox("Enabled##flash", &flashlightEnabled);
+		ImGui::ColorEdit3("Color##flash", flashlightColor);
+		ImGui::SliderFloat("Intensity##flash", &flashlightIntensity, 0.0f, 10.0f, "%.1f");
+		ImGui::SliderFloat("Inner Angle##flash", &flashlightInnerDeg, 1.0f, 60.f, "%.0f deg");
+		ImGui::SliderFloat("Outer Angle##flash", &flashlightOuterDeg, 1.0f, 80.f, "%.0f deg");
+		ImGui::SliderFloat("Range##flash", &flashlightRange, 1.0f, 100.0f, "%.0f");
+		ImGui::SliderFloat("Aim Yaw##flash", &flashlightYawOffset, -60.f, 60.f, "%.0f deg");
+		ImGui::SliderFloat("Aim Pitch##flash", &flashlightPitchOffset, -60.f, 60.f, "%.0f deg");
+		ImGui::DragFloat3("Origin Offset##flash", &flashlightPosOffset.x, 0.1f);
 		ImGui::End();
 	}
 
@@ -670,6 +738,7 @@ void App::ShowTileMapWindow()
 
 			// Load and place prim objects from map
 			primPlaced.clear();
+			primPlacedIndices.clear();
 			for (const auto& primDef : def.prims)
 			{
 				try
@@ -703,6 +772,7 @@ void App::ShowTileMapWindow()
 					if (!group.empty())
 					{
 						primPlaced.push_back(std::move(group));
+						primPlacedIndices.push_back(primDef.primIndex);
 					}
 				}
 				catch (const std::exception&)
@@ -712,6 +782,7 @@ void App::ShowTileMapWindow()
 			}
 
 			ApplyGlobalRenderMode();
+			RebuildEmissiveLights();
 		}
 		catch (const std::exception& e)
 		{
@@ -1077,6 +1148,59 @@ void App::ShowPickingWindow()
 				}
 			}
 		}
+
+		// Emissive light editor: makes this prim TYPE (e.g. a lamp) emit light from a local point
+		ImGui::Separator();
+		ImGui::TextColored({ 1.0f,0.9f,0.4f,1.0f }, "Emissive Light(lamp)");
+		{
+			const int primIndex = (pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlacedIndices.size())
+				? primPlacedIndices[pickedPrimGroupIdx] : -1;
+			if (primIndex < 0)
+			{
+				ImGui::TextDisabled("Unknown prim index - cannot define emissive light.");
+			}
+			else
+			{
+				ImGui::Text("Prim index: %d (applies to all instances)", primIndex);
+				PrimLightDef def = primLightRegistry.Get(primIndex);
+				bool changed = false;
+				changed |= ImGui::Checkbox("Emits Light##emis", &def.enabled);
+				changed |= ImGui::DragFloat3("Emite Offset##emis", &def.offset.x, 0.05f);
+				changed |= ImGui::ColorEdit3("Light Color##emis", &def.color.x);
+				changed |= ImGui::SliderFloat("Light Intensity##emis", &def.intensity, 0.0f, 10.0f, "%.2f");
+				changed |= ImGui::SliderFloat("Atten Const##emis", &def.attConst, 0.0f, 5.0f, "%.2f");
+				changed |= ImGui::SliderFloat("Atten Linear##emis", &def.attLin, 0.0f, 1.0f, "%.4f");
+				changed |= ImGui::SliderFloat("Atten Quad##emis", &def.attQuad, 0.0f, 0.5f, "%.5");
+
+				if (changed)
+				{
+					primLightRegistry.Set(primIndex, def);
+					RebuildEmissiveLights();
+				}
+
+				if (ImGui::Button("Save Light Defs##emis"))
+				{
+					try
+					{
+						primLightRegistry.Save(primLightRegistryPath);
+						exportError = "OK: SSaved prim lights to " + primLightRegistryPath;
+					}
+					catch (const std::exception& e)
+					{
+						exportError = std::string("Save error: ") + e.what();
+					}
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Remove##emis"))
+				{
+					primLightRegistry.Remove(primIndex);
+					RebuildEmissiveLights();
+				}
+				ImGui::TextDisabled("Active scene lights: %d/ %d",
+					emissiveLightsData.count, MAX_EMISSIVE_LIGHTS);
+			}
+		}
+
 		// Pulsating selection color
 		ImGui::Separator();
 		{
@@ -1418,13 +1542,78 @@ void App::ApplyGlobalRenderMode()
 		{
 			for (auto& tech : pd->GetTechniques())
 			{
-				if (tech.GetName() == "Lit") tech.SetActiveState(sceneLitMode);
-				else if (tech.GetName() == "Unlit") tech.SetActiveState(!sceneLitMode);
+				if (tech.GetName() == "ColorLit") tech.SetActiveState(sceneLitMode);
+				else if (tech.GetName() == "PrimUnlit") tech.SetActiveState(!sceneLitMode);
 			}
 		}
 	}
 }
 
+void App::RebuildEmissiveLights()
+{
+	emissiveWorldLights.clear();
+	for (size_t g = 0; g < primPlaced.size(); ++g)
+
+	{
+		const int primIndex = (g < primPlacedIndices.size()) ? primPlacedIndices[g] : -1;
+		if (primIndex < 0 || !primLightRegistry.Has(primIndex))
+		{
+			continue;
+		}
+		const PrimLightDef def = primLightRegistry.Get(primIndex);
+		if (!def.enabled || primPlaced[g].empty())
+		{
+			continue;
+		}
+
+		// All drawables in a group share the same transform; use the first
+		const PrimDrawable* pd = primPlaced[g].front().get();
+		const dx::XMFLOAT3 pos = pd->GetPosition();
+		const float yaw = pd->GetYaw();
+
+		const dx::XMMATRIX world =
+			dx::XMMatrixRotationY(yaw) *
+			dx::XMMatrixTranslation(pos.x, pos.y, pos.z);
+		const dx::XMVECTOR localOffset = dx::XMVectorSet(def.offset.x, def.offset.y, def.offset.z, 1.0f);
+		dx::XMFLOAT3 worldPos;
+		dx::XMStoreFloat3(&worldPos, dx::XMVector3Transform(localOffset, world));
+
+		if (emissiveWorldLights.size() >= (size_t)MAX_EMISSIVE_LIGHTS)
+		{
+			break; // GPU buffer is full
+		}
+
+		EmissiveLightGPU light;
+		light.viewPos = worldPos; // world position for now; transformed each frame
+		light.color = def.color;
+		light.intensity = def.intensity;
+		light.attConst = def.attConst;
+		light.attLin = def.attLin;
+		light.attQuad = def.attQuad;
+		emissiveWorldLights.push_back(light);
+	}
+}
+
+
+void App::BindEmissiveLights(DirectX::FXMMATRIX view)
+{
+	if (!pEmissiveLightsCbuf)
+	{
+		return;
+	}
+
+	const int count = std::min((int)emissiveWorldLights.size(), MAX_EMISSIVE_LIGHTS);
+	emissiveLightsData.count = count;
+	for (int i = 0; i < count; ++i)
+	{
+		EmissiveLightGPU light = emissiveWorldLights[i];
+		const dx::XMVECTOR worldPos = dx::XMVectorSet(light.viewPos.x, light.viewPos.y, light.viewPos.z, 1.0f);
+		dx::XMStoreFloat3(&light.viewPos, dx::XMVector3Transform(worldPos, view));
+		emissiveLightsData.lights[i] = light;
+	}
+	pEmissiveLightsCbuf->Update(wnd.Gfx(), emissiveLightsData);
+	pEmissiveLightsCbuf->Bind(wnd.Gfx());
+}
 
 void App::RebuildNormalsIndicator()
 {
@@ -1665,6 +1854,24 @@ void App::ShowNprimImportWindow()
 				pd->LinkTechniques(*pUnlitRg);
 				primPreview.push_back(std::move(pd));
 			}
+			// Dertive the prim index from the file name
+			primPreviewIndex = -1;
+			{
+				const std::string fname = nprimFilePath;
+				size_t end = fname.find_last_of('.');
+				if (end == std::string::npos) end = fname.size();
+				size_t digitsEnd = end;
+				size_t digitsStart = end;
+				while (digitsStart > 0 && std::isdigit((unsigned char)fname[digitsStart - 1]))
+				{
+					--digitsStart;
+				}
+				if (digitsStart < digitsEnd)
+				{
+					try { primPreviewIndex = std::stoi(fname.substr(digitsStart, digitsEnd - digitsStart)); }
+					catch (...) { primPreviewIndex = -1; }
+				}
+			}
 		}
 		catch (const std::exception& e)
 		{
@@ -1673,9 +1880,17 @@ void App::ShowNprimImportWindow()
 	}
 		
 	ImGui::Text("Placed prims: %zu", primPlaced.size());
+	if (primPreviewIndex >= 0)
+	{
+		ImGui::SameLine();
+		ImGui::TextDisabled("(prim index%d)", primPreviewIndex);
+	}
+
 	if(!primPlaced.empty() && ImGui::Button("Clear All Placed"))
 	{
 		primPlaced.clear();
+		primPlacedIndices.clear();
+		RebuildEmissiveLights();
 	}
 	if (!primPreview.empty())
 	{

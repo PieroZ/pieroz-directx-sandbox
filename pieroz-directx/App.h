@@ -19,6 +19,9 @@
 #include "TileBatch.h"
 #include "PrimDrawable.h"
 #include "WallBatch.h"
+#include "PrimLightRegistry.h"
+#include "EmissiveLightsCBuf.h"
+#include "ConstantBuffers.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,6 +55,10 @@ private:
 	void RebuildTexturedOverlays();
 	void RebuildNormalsIndicator();
 	void ApplyGlobalRenderMode();
+	//Rebuild the world-space list of emissive prim lights from placed prims.
+	void RebuildEmissiveLights();
+	// Upload the active emissive lights (transformed rto view space) to the GPU.
+	void BindEmissiveLights(DirectX::FXMMATRIX view);
 	void ShowExportWindow();
 	void ShowNprimImportWindow();
 	void ShowTileMapWindow();
@@ -132,6 +139,17 @@ private:
 	DirectX::XMFLOAT3 lightAnimCenter = { 7.0f, 5.0f, 7.0f };
 
 	bool sceneLitMode = true;
+
+	bool flashlightEnabled = false;
+	float flashlightColor[3] = { 1.0f, 0.95f, 0.8f };
+	float flashlightIntensity = 4.0f;
+	float flashlightInnerDeg = 12.0f;
+	float flashlightOuterDeg = 22.0f;
+	float flashlightRange = 40.0f;
+	float flashlightYawOffset = 0.0f;
+	float flashlightPitchOffset = 0.0f;
+	DirectX::XMFLOAT3 flashlightPosOffset = { 0.0f, 0.0f, 0.0f };
+	bool flashlightFollowMouse = true; // aim the cone at the mouse cursor
 	// Tile/wall quad measurement (from picking)
 	std::optional<QuadMeasurement> pickedQuadMeasurement;
 	
@@ -141,8 +159,22 @@ private:
 
 	//Prim objects placed in scene
 	std::vector<std::vector<std::unique_ptr<PrimDrawable>>> primPlaced;
+
+	// Prim index ( e.g. 1== nprim001.prim) for each placed group parallel to primPlaced.
+	std::vector<int> primPlacedIndices;
 	// Preview prim following cursor (not yet placed)
 	std::vector<std::unique_ptr<PrimDrawable>> primPreview;
+
+	//Prim index of the current preview (-1 0f unknown) carried to primPlacedIndices on place.
+	int primPreviewIndex = -1;
+
+	//Emissive prim lights(lamps): per-prim-type defitions + GPU upload b uffer.
+	PrimLightRegistry primLightRegistry;
+	std::string primLightRegistryPath = "prim_lights.json";
+	EmissiveLightsCBuf emissiveLightsData;
+	std::unique_ptr<Bind::PixelConstantBuffer<EmissiveLightsCBuf>> pEmissiveLightsCbuf;
+	//World-space staging lists viewPos fiel hold WORLD position here transformed to view space each frame in BindEmissiveLights.
+	std::vector<EmissiveLightGPU> emissiveWorldLights;
 
 	bool savingDepth = false;
 	bool showImguiDebugWindows = false;

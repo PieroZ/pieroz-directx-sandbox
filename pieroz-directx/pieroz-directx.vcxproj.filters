@@ -372,6 +372,9 @@
     <ClCompile Include="NormalsIndicator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PrimLightRegistry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowsMessageMap.h">
@@ -797,6 +800,15 @@
     <ClInclude Include="NormalsIndicator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PrimLightRegistry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimLightDef.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EmissiveLightsCBuf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="pieroz-directx.rc">
@@ -846,6 +858,9 @@
       <Filter>Shader\Common</Filter>
     </None>
     <None Include="sample_tilemap.json" />
+    <None Include="EmissiveLights.hlsli">
+      <Filter>Shader\Common</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PhongDifMskSpcNrm_PS.hlsl">

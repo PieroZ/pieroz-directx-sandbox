@@ -295,8 +295,8 @@ std::vector<std::unique_ptr<WallBatch>> WallBatch::CreateBatches(
 		if (f.BlockHeight == 0)
 			continue;
 
-		if (f.FacetType != 1)
-			continue;
+		/*if (f.FacetType != 1)
+			continue;*/
 
 		const int tileCount =
 			std::max(1, static_cast<int>(f.Height) / 4);

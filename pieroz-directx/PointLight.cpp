@@ -2,6 +2,7 @@
 #include "imgui/imgui.h"
 #include "Camera.h"
 #include "ChiliMath.h"
+#include <cmath>
 
 PointLight::PointLight( Graphics& gfx,DirectX::XMFLOAT3 pos,float radius )
 	:
@@ -93,4 +94,23 @@ void PointLight::SetPos(DirectX::XMFLOAT3 pos) noexcept
 DirectX::XMFLOAT3 PointLight::GetPos() const noexcept
 {
 	return cbData.pos;
+}
+
+void PointLight::SetFlashLight(bool enabled, DirectX::XMFLOAT3 viewPos, DirectX::XMFLOAT3 viewDir,
+	DirectX::XMFLOAT3 color, float innerDeg, float outerDeg, float range, float intensity) noexcept
+{
+	// Keep the bright inner cone no wider than the soft outer cone
+	if (outerDeg < innerDeg)
+	{
+		outerDeg = innerDeg;
+	}
+	cbData.spotPos = viewPos;
+	DirectX::XMStoreFloat3(&cbData.spotDir,
+		DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&viewDir)));
+	cbData.spotColor = color;
+	cbData.spotInnerCos = std::cos(innerDeg * (PI / 180.0f));
+	cbData.spotOuterCos = std::cos(outerDeg * (PI / 180.0f));
+	cbData.spotRange = range;
+	cbData.spotIntensity = intensity;
+	cbData.spotEnabled = enabled ? 1.0f : 0.0f;
 }

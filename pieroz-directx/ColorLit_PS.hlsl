@@ -1,6 +1,7 @@
 #include "ShaderOps.hlsli"
 #include "LightVectorData.hlsli"
 #include "PointLight.hlsli"
+#include "EmissiveLights.hlsli"
 
 Texture2D tex : register(t0);
 SamplerState splr : register(s0);
@@ -59,9 +60,35 @@ float4 main(
 
     // Albedo comes from the texture, optionally tinted by the material color
     const float3 albedo = texColor.rgb * materialColor;
+    
+    // Emissive prim lights(lamps placed in the scene)
+    const float3 emissive = ComputeEmissiveLights(viewFragPos, viewNormal, viewDir);
+    
+    // Flashlight (spotlight) contribution - defined entirely in view space so it shines from the observer's perspective along a steerable cone.
+    float3 spotContribution = float3(0.0f, 0.0f, 0.0f);
+    if(spotEnabled > 0.5f)
+    {
+        const float3 fragToSpot = spotPos - viewFragPos;
+        const float spotDist = length(fragToSpot);
+        const float3 dirToSpot = fragToSpot / max(spotDist, 1e-5f);
+        // cosine of the angle between the cone axis and the direction to this fragment
+        const float theta = dot(-dirToSpot, spotDir);
+        const float coneFalloff = smoothstep(spotOuterCos, spotInnerCos, theta);
+        if (coneFalloff > 0.0f)
+        {
+            const float spotAtt = saturate(1.0f - spotDist / spotRange);
+            const float spotNdl = max(0.0f, dot(dirToSpot, viewNormal));
+            const float3 spotHalf = normalize(dirToSpot + viewDir);
+            const float spotSpec = pow(max(0.0f, dot(viewNormal, spotHalf)), 32.0f);
+            spotContribution =
+                spotColor * spotIntensity * coneFalloff * spotAtt *
+            (spotNdl + spotSpec * 0.4f);
+        }
+
+    }
 
     //const float3 finalColor = albedo * (1.0f + coloredLight) + specular;
-    const float3 finalColor = albedo * coloredLight + specular;
+    const float3 finalColor = albedo * (coloredLight + spotContribution + emissive) + specular;
     
     // Texture modulated by lighting
     return float4(finalColor, texColor.a);
