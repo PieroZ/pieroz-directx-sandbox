@@ -85,3 +85,12 @@ std::shared_ptr<Camera> PointLight::ShareCamera() const noexcept
 {
 	return pCamera;
 }
+void PointLight::SetPos(DirectX::XMFLOAT3 pos) noexcept
+{
+	cbData.pos = pos;
+}
+
+DirectX::XMFLOAT3 PointLight::GetPos() const noexcept
+{
+	return cbData.pos;
+}

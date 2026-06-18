@@ -103,6 +103,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="cnpy.cpp" />
     <ClCompile Include="CubeTexture.cpp" />
+    <ClCompile Include="NormalsIndicator.cpp" />
     <ClCompile Include="ObjExporter.cpp" />
     <ClCompile Include="PrimConverter.cpp" />
     <ClCompile Include="PrimDrawable.cpp" />
@@ -372,6 +373,7 @@
     <ClInclude Include="iam.h" />
     <ClInclude Include="iamLoader.h" />
     <ClInclude Include="iamToJson.h" />
+    <ClInclude Include="NormalsIndicator.h" />
     <ClInclude Include="prim.h" />
     <ClInclude Include="ObjExporter.h" />
     <ClInclude Include="Pap.h" />

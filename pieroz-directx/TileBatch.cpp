@@ -2,6 +2,8 @@
 #include "BindableCommon.h"
 #include "Vertex.h"
 #include "Channels.h"
+#include "DynamicConstant.h"
+#include "ConstantBuffersEx.h"
 #include <DirectXCollision.h>
 #include <cmath>
 
@@ -161,21 +163,43 @@ TileBatch::TileBatch(Graphics& gfx, float tileSize, const std::string& texturePa
 
 	// Unlit textured technique
 	{
-		Technique unlit{ "Unlit", Chan::main, true };
+		//Technique unlit{ "Unlit", Chan::main, true };
+		Technique lit{ "Lit", Chan::main, true };
 		Step step("lambertian");
 
-		auto pvs = VertexShader::Resolve(gfx, "Unlit_VS.cso");
+		//auto pvs = VertexShader::Resolve(gfx, "Unlit_VS.cso");
+		auto pvs = VertexShader::Resolve(gfx, "ColorLit_VS.cso");
 		step.AddBindable(InputLayout::Resolve(gfx, vbuf.GetLayout(), *pvs));
 		step.AddBindable(std::move(pvs));
-		step.AddBindable(PixelShader::Resolve(gfx, "Unlit_PS.cso"));
+		//step.AddBindable(PixelShader::Resolve(gfx, "Unlit_PS.cso"));
+		step.AddBindable(PixelShader::Resolve(gfx, "ColorLit_PS.cso"));
+
+		// Neutral material + white light tint so the tile show its texture and is lit by the actual scene light color/intensity.
+		{
+			Dcb::RawLayout lay;
+			lay.Add<Dcb::Float3>("materialColor");
+			lay.Add<Dcb::Float>("padding0");
+			lay.Add<Dcb::Float3>("lightTint");
+			lay.Add<Dcb::Float>("lightIntensity");
+			Dcb::Buffer buf{ std::move(lay) };
+			buf["materialColor"] = dx::XMFLOAT3{ 1.0f,1.0f,1.0f };
+			buf["padding0"] = 0.0f;
+			buf["lightTint"] = dx::XMFLOAT3{ 1.0f,1.0f,1.0f };
+			buf["lightIntensity"] = 1.0f;
+			step.AddBindable(std::make_shared<Bind::CachingPixelConstantBufferEx>(gfx, std::move(buf), 1u));
+
+		}
 
 		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
 		step.AddBindable(Sampler::Resolve(gfx));
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
 		step.AddBindable(Rasterizer::Resolve(gfx, false, false, 1000, 1.0f)); // no backface culling
 
-		unlit.AddStep(std::move(step));
-		AddTechnique(std::move(unlit));
+		/*unlit.AddStep(std::move(step));
+		AddTechnique(std::move(unlit));*/
+
+		lit.AddStep(std::move(step));
+		AddTechnique(std::move(lit));
 	}
 }
 

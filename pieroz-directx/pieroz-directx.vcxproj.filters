@@ -369,6 +369,9 @@
     <ClCompile Include="TextureIdToFilenameHelper.cpp">
       <Filter>Source Files\UC-utils</Filter>
     </ClCompile>
+    <ClCompile Include="NormalsIndicator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowsMessageMap.h">
@@ -790,6 +793,9 @@
     </ClInclude>
     <ClInclude Include="tma.h">
       <Filter>Header Files\UC-Formats</Filter>
+    </ClInclude>
+    <ClInclude Include="NormalsIndicator.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

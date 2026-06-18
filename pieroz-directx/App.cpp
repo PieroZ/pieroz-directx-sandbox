@@ -14,6 +14,7 @@
 #include "Mesh.h"
 #include "Texture.h"
 #include "TriangleIndicator.h"
+#include "NormalsIndicator.h"
 #include "Node.h"
 #include "TileMapDef.h"
 #include "iamLoader.h"
@@ -123,6 +124,10 @@ App::App( const std::string& commandLine, SceneType scene )
 		pTileScene = std::make_unique<TileMapScene>(wnd.Gfx(), def);
 		pTileScene->LinkTechniques(*pUnlitRg);
 		cameras.LinkTechniques(*pUnlitRg);
+
+		// Light is a visible, movable scene objects that lights the tiles
+		pLight->LinkTechniques(*pUnlitRg);
+		pLight->SetPos(lightAnimCenter);
 	}
 
 	LoadWindowSettings();
@@ -263,6 +268,11 @@ void App::DoFrameDefault(float dt)
 	{
 		pTriIndicator->Submit(Chan::main);
 	}
+	
+	if (pNormalsIndicator)
+	{
+		pNormalsIndicator->Submit(Chan::main);
+	}
 
 	if (dynamicModel)
 	{
@@ -376,6 +386,21 @@ void App::DoFrameTileMap(float dt)
 	// Bind the point light cbuffer(register b0) so lit techniques like ColorLit receive valid light color/intensity data
 	if (pLight)
 	{
+		if (animateLight)
+		{
+			lightAnimTime += dt;
+		}
+		const float offset = lightAnimAmplitude * std::sin(lightAnimTime * lightAnimSpeed);
+		dx::XMFLOAT3 lampPos = lightAnimCenter;
+		if (lightAnimAxis == 0)
+		{
+			lampPos.x += offset;
+		}
+		else
+		{
+			lampPos.z += offset;
+		}
+		pLight->SetPos(lampPos);
 		pLight->Bind(wnd.Gfx(), cameras->GetMatrix());
 	}
 
@@ -383,6 +408,11 @@ void App::DoFrameTileMap(float dt)
 
 	const size_t submittedTiles = pTileScene->Submit(Chan::main);
 	cameras.Submit(Chan::main);
+
+	if (pLight)
+	{
+		pLight->Submit(Chan::main);
+	}
 
 	// Submit permanently placed prims
 	for (auto& group : primPlaced)
@@ -456,6 +486,13 @@ void App::DoFrameTileMap(float dt)
 		pTriIndicator->Submit(Chan::main);
 	}
 
+
+	// Submit face-normals arrows if enabled
+	if (pNormalsIndicator)
+	{
+		pNormalsIndicator->Submit(Chan::main);
+	}
+
 	// Submit textured overlays for picked face
 	for (const auto& overlay : texturedOverlays)
 	{
@@ -497,6 +534,22 @@ void App::DoFrameTileMap(float dt)
 		ImGui::End();
 	}
 
+
+	// Scene light (animated lamp) controls
+	{
+		ImGui::Begin("Scene Light");
+		ImGui::Checkbox("Animate (oscillate)", &animateLight);
+		ImGui::Combo("sweep Axis", &lightAnimAxis, "X\0Z\0");
+		ImGui::SliderFloat("Speed", &lightAnimSpeed, 0.0f, 3.0f, "%.2f");
+		ImGui::SliderFloat("Amplitude", &lightAnimAmplitude, 0.0f, 16.0f, "%.1f");
+		ImGui::DragFloat3("Center", &lightAnimCenter.x, 0.1f);
+		if (pLight)
+		{
+			const auto p = pLight->GetPos();
+			ImGui::Text("Light pos: %.1f, %.1f, %.1f", p.z, p.y, p.z);
+		}
+		ImGui::End();
+	}
 
 	ShowWindowControlPanel();
 
@@ -781,6 +834,8 @@ void App::PerformPicking()
 
 	// clear old triangle indicator
 	pTriIndicator.reset();
+	// clear old face-normal arrows (rebuilt below if the option is enabled)
+	pNormalsIndicator.reset();
 
 	// Test all models
 	pPickedMesh = nullptr;
@@ -918,6 +973,12 @@ void App::PerformPicking()
 		pTriIndicator->LinkTechniques(GetRenderGraph());
 		pickedWorldTransform = bestWorldTransform;
 	}
+
+	// Rebuild face-normal arrows for the newly selected object (if enabled)
+	if (showFaceNormals)
+	{
+		RebuildNormalsIndicator();
+	}
 }
 
 void App::ShowPickingWindow()
@@ -1026,6 +1087,21 @@ void App::ShowPickingWindow()
 		}
 
 		ImGui::Separator();
+		ImGui::TextColored({ 0.4f, 1.0f, 0.6f, 1.0 }, "Debug");
+		{
+			bool changed = ImGui::Checkbox("Show Face Normals##prim", &showFaceNormals);
+			if (showFaceNormals)
+			{
+				changed |= ImGui::SliderFloat("Normal Length##prim", &faceNormalLength, 0.05f, 5.0f);
+			}
+			if (changed)
+			{
+				RebuildNormalsIndicator();
+			}
+		}
+
+
+		ImGui::Separator();
 		if (ImGui::Button("Deselect##prim"))
 		{
 			if (pPrevSelectedPrim)
@@ -1045,6 +1121,7 @@ void App::ShowPickingWindow()
 			pickedPrimGroupIdx = -1;
 			pickedPrimIdx = -1;
 			selectedPrimRenderMode = 0;
+			pNormalsIndicator.reset();
 		}
 	}
 	//else if (pickedQuadMeasurement.has_value())
@@ -1224,6 +1301,20 @@ void App::ShowPickingWindow()
 				}
 			}
 		}
+
+		ImGui::Separator();
+		ImGui::TextColored({ 0.4,1.0f,0.6,1.0f }, "Debug");
+		{
+			bool changed = ImGui::Checkbox("Show Face Normals", &showFaceNormals);
+			if (showFaceNormals)
+			{
+				changed |= ImGui::SliderFloat("Normal Length", &faceNormalLength, 0.05f, 5.0f);
+			}
+			if (changed)
+			{
+				RebuildNormalsIndicator();
+			}
+		}
 	}
 
 	ImGui::Separator();
@@ -1258,6 +1349,7 @@ void App::ShowPickingWindow()
 		selectedRenderMode = 0;
 		pPickedMesh = nullptr;
 		pTriIndicator.reset();
+		pNormalsIndicator.reset();
 	}
 	ImGui::End();
 
@@ -1272,6 +1364,71 @@ void App::ShowPickingWindow()
 	//	ImGui::Text("No mesh picked");
 	//}
 	//ImGui::End();
+}
+
+
+void App::RebuildNormalsIndicator()
+{
+	pNormalsIndicator.reset();
+	if (!showFaceNormals)
+	{
+		return;
+	}
+
+	// Collect world-space arrow segments {faceCenter, faceCenter + normal*length}
+	std::vector<std::pair<dx::XMFLOAT3, dx::XMFLOAT3>> segments;
+
+	const auto appendFaces = [&](const std::vector<dx::XMFLOAT3>& positions,
+		const std::vector<unsigned short>& indices,
+		dx::FXMMATRIX worldMat)
+		{
+			for (size_t i = 0; i + 2 < indices.size(); i += 3)
+			{
+				const auto p0 = dx::XMVector3TransformCoord(dx::XMLoadFloat3(&positions[indices[i + 0]]), worldMat);
+				const auto p1 = dx::XMVector3TransformCoord(dx::XMLoadFloat3(&positions[indices[i + 1]]), worldMat);
+				const auto p2 = dx::XMVector3TransformCoord(dx::XMLoadFloat3(&positions[indices[i + 2]]), worldMat);
+
+				const auto center = dx::XMVectorScale(dx::XMVectorAdd(dx::XMVectorAdd(p0, p1), p2), 1.0f / 3.0f);
+
+				const auto edge1 = dx::XMVectorSubtract(p1, p0);
+				const auto edge2 = dx::XMVectorSubtract(p2, p0);
+				auto normal = dx::XMVector3Cross(edge1, edge2);
+				if (dx::XMVectorGetX(dx::XMVector3LengthSq(normal)) < 1e-12f)
+				{
+					continue; // skip degenerate triangle
+				}
+				normal = dx::XMVector3Normalize(normal);
+
+				const auto tip = dx::XMVectorAdd(center, dx::XMVectorScale(normal, faceNormalLength));
+
+				dx::XMFLOAT3 s, t;
+				dx::XMStoreFloat3(&s, center);
+				dx::XMStoreFloat3(&t, tip);
+				segments.emplace_back(s, t);
+
+			}
+		};
+	if (pPickedMesh)
+	{
+		appendFaces(pPickedMesh->GetCpuPositions(), pPickedMesh->GetCpuIndices(),
+			dx::XMLoadFloat4x4(&pickedWorldTransform));
+	}
+	else if (pickedPrimGroupIdx >= 0 && pickedPrimGroupIdx < (int)primPlaced.size())
+	{
+		// A prim is split into one PrimDrawable per texturel include the whole group
+		for (auto& pd : primPlaced[pickedPrimGroupIdx])
+		{
+			appendFaces(pd->GetCpuPositions(), pd->GetCpuIndices(), pd->GetTransformXM());
+		}
+	}
+
+	if (segments.empty())
+	{
+		return;
+	}
+
+	pNormalsIndicator = std::make_unique<NormalsIndicator>(wnd.Gfx(), segments);
+	pNormalsIndicator->LinkTechniques(GetRenderGraph());
 }
 
 

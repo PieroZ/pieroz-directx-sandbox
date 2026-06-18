@@ -21,6 +21,9 @@ public:
 	void Bind( Graphics& gfx,DirectX::FXMMATRIX view ) const noexcept;
 	void LinkTechniques( Rgph::RenderGraph& );
 	std::shared_ptr<Camera> ShareCamera() const noexcept;
+	// World-space positions accessors (used to anime the light as a scene object)
+	void SetPos(DirectX::XMFLOAT3 pos) noexcept;
+	DirectX::XMFLOAT3 GetPos() const noexcept;
 private:
 	struct PointLightCBuf
 	{

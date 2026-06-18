@@ -26,6 +26,7 @@
 
 class Mesh;
 class TriangleIndicator;
+class NormalsIndicator;
 
 enum class SceneType
 {
@@ -49,6 +50,7 @@ private:
 	void PerformPicking();
 	void ShowPickingWindow();
 	void RebuildTexturedOverlays();
+	void RebuildNormalsIndicator();
 	void ShowExportWindow();
 	void ShowNprimImportWindow();
 	void ShowTileMapWindow();
@@ -109,13 +111,24 @@ private:
 	std::string exportError;
 
 
+	// Face-normal arrows overlay for the selected object
+	std::unique_ptr<NormalsIndicator> pNormalsIndicator;
+	bool showFaceNormals = false;
+	float faceNormalLength = 0.3f;
+
 	// === Tile map scene objects (SceneType::TileMap) ===
 	std::unique_ptr<TileMapScene> pTileScene;
 	std::string tileModelLoadError;
 	float tileModelScale = 1.0f;
 
 
-	
+	// Animated scene light (oscillates like a swinging lamp over the tile grid)
+	bool animateLight = true;
+	float lightAnimTime =0.0f;	
+	int lightAnimAxis = 0;
+	float lightAnimSpeed = 0.6f;
+	float lightAnimAmplitude = 9.0f;
+	DirectX::XMFLOAT3 lightAnimCenter = { 7.0f, 5.0f, 7.0f };
 	// Tile/wall quad measurement (from picking)
 	std::optional<QuadMeasurement> pickedQuadMeasurement;
 	
