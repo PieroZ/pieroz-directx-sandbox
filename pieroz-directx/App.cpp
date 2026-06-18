@@ -232,7 +232,14 @@ void App::HandleInput( float dt )
 			// Don't pick if ImGui captured the mouse
 			if (!ImGui::GetIO().WantCaptureMouse)
 			{
-				PerformPicking();
+				if (pickingEmitPoint)
+				{
+					PlaceEmitPointAtCursor();
+				}
+				else
+				{
+					PerformPicking();
+				}
 				//break; // Only handle one click per frame
 			}
 		}
@@ -638,6 +645,9 @@ void App::DoFrameTileMap(float dt)
 	{
 		DrawDebugOverlay();
 	}
+
+	// Always show ehere lamps emit light ( and the live empit-point while editing).
+	DrawEmissiveLightOverlay();
 
 	if (showNprimImportWindow)
 	{
@@ -1165,12 +1175,26 @@ void App::ShowPickingWindow()
 				PrimLightDef def = primLightRegistry.Get(primIndex);
 				bool changed = false;
 				changed |= ImGui::Checkbox("Emits Light##emis", &def.enabled);
-				changed |= ImGui::DragFloat3("Emite Offset##emis", &def.offset.x, 0.05f);
+				if (ImGui::Button(pickingEmitPoint
+					? "Picking ... click the lamp in the scene (or click to cancel)##emis"
+					: "Pick Emit Point(clock on the lamp)##emis"))
+				{
+					pickingEmitPoint = !pickingEmitPoint;
+				}
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Clikc this, then click the glowing/glass part of the lamp\n in the 3D view to place the light exactly there.");
+				}
+				if (pickingEmitPoint)
+				{
+					ImGui::TextColored({ 1.0f,0.5,0.3f,1.0f }, "->Click the lamp model now.");
+				}
+				changed |= ImGui::DragFloat3("Emit Offset (local)##emis", &def.offset.x, 0.05f);
 				changed |= ImGui::ColorEdit3("Light Color##emis", &def.color.x);
 				changed |= ImGui::SliderFloat("Light Intensity##emis", &def.intensity, 0.0f, 10.0f, "%.2f");
 				changed |= ImGui::SliderFloat("Atten Const##emis", &def.attConst, 0.0f, 5.0f, "%.2f");
 				changed |= ImGui::SliderFloat("Atten Linear##emis", &def.attLin, 0.0f, 1.0f, "%.4f");
-				changed |= ImGui::SliderFloat("Atten Quad##emis", &def.attQuad, 0.0f, 0.5f, "%.5");
+				changed |= ImGui::SliderFloat("Atten Quad##emis", &def.attQuad, 0.0f, 0.5f, "%.5f");
 
 				if (changed)
 				{
@@ -1614,6 +1638,164 @@ void App::BindEmissiveLights(DirectX::FXMMATRIX view)
 	pEmissiveLightsCbuf->Update(wnd.Gfx(), emissiveLightsData);
 	pEmissiveLightsCbuf->Bind(wnd.Gfx());
 }
+
+void App::PlaceEmitPointAtCursor()
+{
+	if (pickedPrimGroupIdx < 0 || pickedPrimGroupIdx >= (int)primPlaced.size()
+		|| primPlaced[pickedPrimGroupIdx].empty())
+	{
+		pickingEmitPoint = false;
+		return;
+	}
+	const int primIndex = (pickedPrimGroupIdx < (int)primPlacedIndices.size())
+		? primPlacedIndices[pickedPrimGroupIdx] : -1;
+	if (primIndex < 0)
+	{
+		pickingEmitPoint = false;
+		return;
+	}
+
+	const auto [mouseX, mouseY] = wnd.mouse.GetPos();
+	const int vpWidth = (int)wnd.Gfx().GetWidth();
+	const int vpHeight = (int)wnd.Gfx().GetHeight();
+	auto [rayOrigin, rayDir] = Picking::ScreenToRay(
+		mouseX, mouseY, vpWidth, vpHeight,
+		wnd.Gfx().GetProjection(), cameras->GetMatrix());
+
+	//Ray-cast against the selected lamp's own geometry; take the closest hit.
+	float bestT = FLT_MAX;
+	bool hitAny = false;
+	for (auto& pd : primPlaced[pickedPrimGroupIdx])
+	{
+		if (auto hit = pd->Intersect(rayOrigin, rayDir))
+		{
+			if (hit->second < bestT)
+			{
+				bestT = hit->second;
+				hitAny = true;
+			}
+		}
+	}
+	if (!hitAny)
+	{
+		// Missed the model - keep the mode active so the user can try again;
+		return;
+	}
+
+	const dx::XMVECTOR worldHit = dx::XMVectorAdd(rayOrigin, dx::XMVectorScale(rayDir, bestT));
+
+	// Conver the world-space hti into the prim's local space so it follows the prim wherever it is placed/rotated
+	const PrimDrawable* pd0 = primPlaced[pickedPrimGroupIdx].front().get();
+	const dx::XMFLOAT3 pos = pd0->GetPosition();
+	const float yaw = pd0->GetYaw();
+	const dx::XMMATRIX world =
+		dx::XMMatrixRotationY(yaw) *
+		dx::XMMatrixTranslation(pos.x, pos.y, pos.z);
+	const dx::XMMATRIX invWorld = dx::XMMatrixInverse(nullptr, world);
+	dx::XMFLOAT3 local;
+	dx::XMStoreFloat3(&local, dx::XMVector3Transform(worldHit, invWorld));
+
+	PrimLightDef def = primLightRegistry.Get(primIndex);
+	def.offset = local;
+	def.enabled = true;
+	primLightRegistry.Set(primIndex, def);
+	RebuildEmissiveLights();
+
+	pickingEmitPoint = false;
+}
+
+
+void App::DrawEmissiveLightOverlay()
+{
+	const bool haveSelected = (pickedPrimGroupIdx >= 0
+		&& pickedPrimGroupIdx < (int)primPlaced.size()
+		&& !primPlaced[pickedPrimGroupIdx].empty());
+	if (emissiveWorldLights.empty() && !haveSelected)
+	{
+		return;
+	}
+
+	const int vpWidth = (int)wnd.Gfx().GetWidth();
+	const int vpHeight = (int)wnd.Gfx().GetHeight();
+	const auto viewMatrix = cameras->GetMatrix();
+	const auto projMatrix = cameras->GetProjection();
+	const auto viewProj = dx::XMMatrixMultiply(viewMatrix, projMatrix);
+	auto* drawList = ImGui::GetOverlayDrawList();
+
+	auto WorldToScreen = [&](const dx::XMFLOAT3& worldPos, ImVec2& screenOut) -> bool
+		{
+			const auto posView = dx::XMVector3TransformCoord(dx::XMLoadFloat3(&worldPos), viewMatrix);
+			dx::XMFLOAT3 viewCoord;
+			dx::XMStoreFloat3(&viewCoord, posView);
+			if (viewCoord.z < 0.0f)
+			{
+				return false; // behind camera
+			}
+			const auto pos = dx::XMVector3TransformCoord(dx::XMLoadFloat3(&worldPos), viewProj);
+			dx::XMFLOAT4 clip;
+			dx::XMStoreFloat4(&clip, pos);
+			screenOut.x = (clip.x * 0.5f + 0.5f) * vpWidth;
+			screenOut.y = (-clip.y * 0.5f + 0.5f) * vpHeight;
+			return true;
+		};
+
+	// Marker for every active emissive light (emissiveWorldLights stores WORLD pos).
+	for (const auto& l : emissiveWorldLights)
+	{
+		ImVec2 s;
+		if (!WorldToScreen(l.viewPos, s))
+		{
+			continue;
+		}
+		const ImU32 col = IM_COL32(
+			(int)(std::min(1.0f, l.color.x) * 255.0f),
+			(int)(std::min(1.0f, l.color.y) * 255.0f),
+			(int)(std::min(1.0f, l.color.z) * 255.0f), 255);
+		drawList->AddCircleFilled(s, 5.0f, col);
+		drawList->AddCircle(s, 8.0f, IM_COL32(0, 0, 0, 200), 0, 2.0f);
+		for (int a = 0; a < 8; ++a)
+		{
+			const float ang = a * 0.7853981f; // 45 deg
+			const ImVec2 p0(s.x + std::cos(ang) * 10.f, s.y + std::sin(ang) * 10.0f);
+			const ImVec2 p1(s.x + std::cos(ang) * 15.f, s.y + std::sin(ang) * 15.0f);
+			drawList->AddLine(p0, p1, col, 2.0f);
+		}
+	}
+
+	if (haveSelected)
+	{
+		const int primIndex = (pickedPrimGroupIdx < (int)primPlacedIndices.size())
+			? primPlacedIndices[pickedPrimGroupIdx] : -1;
+		if (primIndex < 0)
+		{
+			const PrimLightDef def = primLightRegistry.Get(primIndex);
+			const PrimDrawable* pd = primPlaced[pickedPrimGroupIdx].front().get();
+			const dx::XMFLOAT3 pos = pd->GetPosition();
+			const float yaw = pd->GetYaw();
+			const dx::XMMATRIX world =
+				dx::XMMatrixRotationY(yaw) *
+				dx::XMMatrixTranslation(pos.x, pos.y, pos.z);
+			dx::XMFLOAT3 wp;
+			dx::XMStoreFloat3(&wp, dx::XMVector3Transform(
+				dx::XMVectorSet(def.offset.x, def.offset.y, def.offset.z, 1.0f), world));
+
+			ImVec2 s;
+			if (WorldToScreen(wp, s))
+			{
+				const ImU32 hl = pickingEmitPoint
+					? IM_COL32(255, 90, 60, 255)
+					: IM_COL32(255, 230, 80, 255);
+				drawList->AddCircle(s, 11.0f, hl, 0, 2.5f);
+				drawList->AddLine({ s.x - 15.0f, s.y }, { s.x + 15.0f, s.y }, hl, 1.5f);
+				drawList->AddLine({ s.x , s.y - 15.0f }, { s.x , s.y + 15.0f }, hl, 1.5f);
+				drawList->AddText({ s.x + 13.0f, s.y + 6.0f }, hl,
+					pickingEmitPoint ? "click lamp to set emit point" : "emit point");
+			}
+		}
+	}
+
+}
+
 
 void App::RebuildNormalsIndicator()
 {

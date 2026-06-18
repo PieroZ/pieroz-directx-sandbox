@@ -4,7 +4,7 @@
 
 struct EmissiveLight
 {
-    float viewPos;
+    float3 viewPos;
     float pad0;
     float3 color;
     float intensity;

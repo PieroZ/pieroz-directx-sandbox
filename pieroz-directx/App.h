@@ -59,6 +59,10 @@ private:
 	void RebuildEmissiveLights();
 	// Upload the active emissive lights (transformed rto view space) to the GPU.
 	void BindEmissiveLights(DirectX::FXMMATRIX view);
+
+	void DrawEmissiveLightOverlay();
+	void PlaceEmitPointAtCursor();
+
 	void ShowExportWindow();
 	void ShowNprimImportWindow();
 	void ShowTileMapWindow();
@@ -175,6 +179,8 @@ private:
 	std::unique_ptr<Bind::PixelConstantBuffer<EmissiveLightsCBuf>> pEmissiveLightsCbuf;
 	//World-space staging lists viewPos fiel hold WORLD position here transformed to view space each frame in BindEmissiveLights.
 	std::vector<EmissiveLightGPU> emissiveWorldLights;
+
+	bool pickingEmitPoint = false;
 
 	bool savingDepth = false;
 	bool showImguiDebugWindows = false;
