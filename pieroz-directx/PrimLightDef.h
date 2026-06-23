@@ -15,4 +15,10 @@ struct PrimLightDef
 	float attConst = 1.0f;
 	float attLin = 0.045f;
 	float attQuad = 0.0075f;
+
+	// Cone/ spolight shaping. When 'spotlight' is true the light only illuminates inside a cone aimed along direction
+	bool spotlight = true;
+	DirectX::XMFLOAT3 direction = { 0.0f, -1.0f, 0.0f }; // local beam direction (downward)
+	float innerConeDeg = 25.0f;
+	float outerConeDeg = 40.0f;
 };

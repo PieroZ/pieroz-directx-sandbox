@@ -7,17 +7,19 @@
 static constexpr int MAX_EMISSIVE_LIGHTS = 16;
 
 // One emissive point light, stored in VIEW space when uploaded to the GPU
-// Layout must match the Emissive Light struct in EmissiveLights.hlsli (48 bytes).
+// Layout must match the Emissive Light struct in EmissiveLights.hlsli (64 bytes).
 struct EmissiveLightGPU
 {
 	DirectX::XMFLOAT3 viewPos = { 0.0f, 0.0f, 0.0f };
 	float pad0 = 0.0f;
 	DirectX::XMFLOAT3 color = { 1.0f, 1.0f, 1.0f };
 	float intensity = 0.0f;
+	DirectX::XMFLOAT3 viewDir = { 0.0f, -1.0f, 0.0f }; // beam direction (View space)
+	float spotCosInner = 1.0f;
 	float attConst = 1.0f;
 	float attLin = 0.045f;
 	float attQuad = 0.0075f;
-	float pad1 = 0.0f;
+	float spotCosOuter = -2.0f;
 };
 
 // Constant buffer mirroring EmissiveLighsCBuf (register b3) in the HLSL.

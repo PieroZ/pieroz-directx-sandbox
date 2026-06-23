@@ -8,10 +8,12 @@ struct EmissiveLight
     float pad0;
     float3 color;
     float intensity;
+    float3 viewDir; // beam direction in view space
+    float spotCosInner; // cos(inner half-angle)
     float attConst;
     float attLin;
     float attQuad;
-    float pad1;
+    float spotCosOuter; // cos(outer half-angl); <= -1.5 means no cone (omni)
 };
 
 cbuffer EmissiveLightsCBuf : register(b3)
@@ -35,10 +37,24 @@ float3 ComputeEmissiveLights(float3 viewFragPos, float3 viewNormal, float3 viewD
         const float att = 1.0f / (emissiveLights[i].attConst +
         emissiveLights[i].attLin * dist +
         emissiveLights[i].attQuad * dist * dist);
+        
+        // Spolight cone shaping: only light fragments inside the beam cone.
+        // dir ToL points fragment-> light so -dirToL is light->fragment, which
+        // we compare against the beam direction. Soft edge between inner/outer angle.
+        float spotFactor = 1.0f;
+        if(emissiveLights[i].spotCosOuter>-1.5f)
+        {
+            const float cosAngle = dot(-dirToL, emissiveLights[i].viewDir);
+            spotFactor = smoothstep(
+            emissiveLights[i].spotCosOuter,
+            emissiveLights[i].spotCosInner,
+            cosAngle);
+
+        }
         const float ndl = max(0.0f, dot(dirToL, viewNormal));
         const float3 halfDir = normalize(dirToL + viewDir);
         const float spec = pow(max(0.0f, dot(viewNormal, halfDir)), 32.0f);
-        total += emissiveLights[i].color * emissiveLights[i].intensity * att *
+        total += emissiveLights[i].color * emissiveLights[i].intensity * att * spotFactor *
         (ndl + spec * 0.4f);
 
     }

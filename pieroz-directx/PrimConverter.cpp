@@ -36,7 +36,7 @@ namespace
 	}
 }
 
-std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
+std::vector<PrimMeshPart> ConvertPrimToTexturedTriangleList(
     const PrimLoadResult& prim,
     float scale)
 {
@@ -60,7 +60,8 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
             .Append(VertexLayout::Texture2D);
         };
 
-    std::map<int, std::unique_ptr<TriListBuilder>> builders;
+    // Key: {textureImgNo, doubleSided}. Double-sided faces are kept in separate builders so they can be renderedw ithout back-face culling
+    std::map<std::pair<int, bool>, std::unique_ptr<TriListBuilder>> builders;
 
     auto getPoint = [&](std::uint16_t idx) -> dx::XMFLOAT3
         {
@@ -102,15 +103,16 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
             return result;
         };
 
-    auto getOrCreateBuilder = [&](int texImgNo) -> TriListBuilder&
+    auto getOrCreateBuilder = [&](int texImgNo, bool doubleSided) -> TriListBuilder&
         {
-            auto it = builders.find(texImgNo);
+            const auto key = std::make_pair(texImgNo, doubleSided);
+            auto it = builders.find(key);
 
             if (it == builders.end())
             {
                 auto [inserted, _] =
                     builders.emplace(
-                        texImgNo,
+                        key,
                         std::make_unique<TriListBuilder>(makeLayout()));
 
                 return *inserted->second;
@@ -142,7 +144,9 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
                 av_v_tile,
                 f.TexturePage);
 
-        auto& builder = getOrCreateBuilder(texImgNo);
+        const bool doubleSided =
+            (f.DrawFlags & POLY_FLAG_DOUBLESIDED) != 0;
+        auto& builder = getOrCreateBuilder(texImgNo, doubleSided);
 
         const auto baseIdx =
             static_cast<unsigned short>(builder.vbuf.Size());
@@ -207,7 +211,11 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
                 av_v_tile,
                 f.TexturePage);
 
-        auto& builder = getOrCreateBuilder(texImgNo);
+
+        const bool doubleSided =
+            (f.DrawFlags & POLY_FLAG_DOUBLESIDED) != 0;
+
+        auto& builder = getOrCreateBuilder(texImgNo, doubleSided);
 
         const auto baseIdx =
             static_cast<unsigned short>(builder.vbuf.Size());
@@ -254,17 +262,18 @@ std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
     //
     // Build final result
     //
-    std::map<int, IndexedTriangleList> result;
+    std::vector<PrimMeshPart> result;
 
-    for (auto& [texImgNo, builder] : builders)
+    for (auto& [key, builder] : builders)
     {
         if (builder->vbuf.Size() >= 3)
         {
-            result.emplace(
-                texImgNo,
+            result.push_back(PrimMeshPart{
+                key.first,
+                key.second,
                 IndexedTriangleList(
                     std::move(builder->vbuf),
-                    std::move(builder->indices)));
+                    std::move(builder->indices)) });
         }
     }
 

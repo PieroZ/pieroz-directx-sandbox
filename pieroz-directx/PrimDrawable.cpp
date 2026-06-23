@@ -8,7 +8,7 @@
 
 namespace dx = DirectX;
 
-PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std::string& texturePath)
+PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std::string& texturePath, bool doubleSided)
 {
 	using namespace Bind;
 	using Elements = Dvtx::VertexLayout::ElementType;
@@ -44,7 +44,7 @@ PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std
 		step.AddBindable(Bind::Texture::Resolve(gfx, texturePath, 0u));
 		step.AddBindable(Sampler::Resolve(gfx));
 		step.AddBindable(std::make_shared<TransformCbuf>(gfx));
-		step.AddBindable(Rasterizer::Resolve(gfx, false));
+		step.AddBindable(Rasterizer::Resolve(gfx, doubleSided));
 		step.AddBindable(Blender::Resolve(gfx, true));
 
 		unlit.AddStep(std::move(step));
@@ -80,6 +80,7 @@ PrimDrawable::PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std
 			buf["lightIntensity"] = 2.0f;
 			step.AddBindable(std::make_shared<Bind::CachingPixelConstantBufferEx>(gfx, buf, 1u));
 		}
+		step.AddBindable(Rasterizer::Resolve(gfx, doubleSided));
 
 		colorLit.AddStep(std::move(step));
 		AddTechnique(std::move(colorLit));

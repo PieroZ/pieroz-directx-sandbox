@@ -61,6 +61,12 @@ void PrimLightRegistry::Load(const std::string& path)
 		def.attConst = e.value("attConst", 1.0f);
 		def.attLin = e.value("attLin", 0.0045f);
 		def.attQuad  = e.value("attQuad", 0.0075f);
+		def.spotlight  = e.value("spotlight", true);
+		def.direction.x  = e.value("dirX", 0.0f);
+		def.direction.y  = e.value("dirY", -1.0f);
+		def.direction.z  = e.value("dirZ", 0.0f);
+		def.innerConeDeg  = e.value("innerConeDeg", 25.0f);
+		def.outerConeDeg  = e.value("outerConeDeg", 40.0f);
 		entries[idx] = def;
 	}
 }
@@ -84,6 +90,12 @@ void PrimLightRegistry::Save(const std::string& path) const
 		e["attConst"] = def.attConst;
 		e["attLin"] = def.attLin;
 		e["attQuad"] = def.attQuad;
+		e["spotlight"] = def.spotlight;
+		e["dirX"] = def.direction.x;
+		e["dirY"] = def.direction.y;
+		e["dirZ"] = def.direction.z;
+		e["innerConeDeg"] = def.innerConeDeg;
+		e["outerConeDeg"] = def.outerConeDeg;
 		j["primLights"].push_back(std::move(e));;
 	}
 

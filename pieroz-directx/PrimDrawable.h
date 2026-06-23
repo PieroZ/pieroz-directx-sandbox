@@ -13,7 +13,7 @@ namespace Rgph { class RenderGraph; }
 class PrimDrawable : public Drawable
 {
 public:
-	PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std::string& texturePath = "Images\\white.png");
+	PrimDrawable(Graphics& gfx, IndexedTriangleList triList, const std::string& texturePath = "Images\\white.png", bool doubleSided = false);
 	DirectX::XMMATRIX GetTransformXM() const noexcept override;
 	void SetPosition(const DirectX::XMFLOAT3& pos) noexcept;
 	void SetPosition(float x, float y, float z) noexcept;

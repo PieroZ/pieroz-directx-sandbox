@@ -758,10 +758,10 @@ void App::ShowTileMapWindow()
 					auto texturedLists = ConvertPrimToTexturedTriangleList(primResult);
 
 					std::vector<std::unique_ptr<PrimDrawable>> group;
-					for (auto& [texImgNo, triList] : texturedLists)
+					for (auto& part : texturedLists)
 					{
-						std::string texPath = GetPrimTexturePath(texImgNo);
-						auto pd = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(triList), texPath);
+						std::string texPath = GetPrimTexturePath(part.textureImgNo);
+						auto pd = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(part.triangles), texPath, part.doubleSided);
 						pd->LinkTechniques(*pUnlitRg);
 
 						// Position: x and z are grid coords, y is height
@@ -1196,6 +1196,26 @@ void App::ShowPickingWindow()
 				changed |= ImGui::SliderFloat("Atten Linear##emis", &def.attLin, 0.0f, 1.0f, "%.4f");
 				changed |= ImGui::SliderFloat("Atten Quad##emis", &def.attQuad, 0.0f, 0.5f, "%.5f");
 
+
+				// Cone / spotlight shaping so lamp casts a directed beam
+				ImGui::Separator();
+				changed |= ImGui::Checkbox("Spotlight (cone)##emis", &def.spotlight);
+				if (def.spotlight)
+				{
+					changed |= ImGui::DragFloat3("Beam Dir(local)##emis", &def.direction.x, 0.02f, -1.0f, 1.0f);
+					if (ImGui::Button("Aim Down##emis"))
+					{
+						def.direction = { 0.0f, -1.0f, 0.0f };
+						changed = true;
+					}
+					changed |= ImGui::SliderFloat("Inner Angle##emis", &def.innerConeDeg, 1.0f, 89.0f, "%.0f deg");
+					changed |= ImGui::SliderFloat("Outer Angle##emis", &def.outerConeDeg, 1.0f, 89.0f, "%.0f deg");
+					if (def.outerConeDeg < def.innerConeDeg)
+					{
+						def.outerConeDeg = def.innerConeDeg; // keep soft edge valid
+						changed = true;
+					}
+				}
 				if (changed)
 				{
 					primLightRegistry.Set(primIndex, def);
@@ -1614,6 +1634,27 @@ void App::RebuildEmissiveLights()
 		light.attConst = def.attConst;
 		light.attLin = def.attLin;
 		light.attQuad = def.attQuad;
+
+		// Cone shaping: rotate teh local beam direction into world spcae
+		if (def.spotlight)
+		{
+			const dx::XMVECTOR localDir = dx::XMVectorSet(def.direction.x, def.direction.y, def.direction.z, 0.0f);
+			dx::XMFLOAT3 worldDir;
+			dx::XMStoreFloat3(&worldDir, dx::XMVector3Normalize(dx::XMVector3TransformNormal(localDir, world)));
+			light.viewDir = worldDir;
+
+			float innerDeg = def.innerConeDeg;
+			float outerDeg = def.outerConeDeg;
+			if (outerDeg < innerDeg) outerDeg = innerDeg;
+			light.spotCosInner = std::cos(innerDeg * (PI / 180.f));
+			light.spotCosOuter = std::cos(outerDeg * (PI / 180.f));
+		}
+		else
+		{
+			light.viewDir = { 0.0f, -1.0f, 0.0f };
+			light.spotCosInner = 1.0f;
+			light.spotCosOuter = -2.0f;
+		}
 		emissiveWorldLights.push_back(light);
 	}
 }
@@ -1633,6 +1674,10 @@ void App::BindEmissiveLights(DirectX::FXMMATRIX view)
 		EmissiveLightGPU light = emissiveWorldLights[i];
 		const dx::XMVECTOR worldPos = dx::XMVectorSet(light.viewPos.x, light.viewPos.y, light.viewPos.z, 1.0f);
 		dx::XMStoreFloat3(&light.viewPos, dx::XMVector3Transform(worldPos, view));
+
+		// Rotate the beam direction into view space
+		const dx::XMVECTOR worldDir = dx::XMVectorSet(light.viewDir.x, light.viewDir.y, light.viewDir.z, 0.0f);
+		dx::XMStoreFloat3(&light.viewDir, dx::XMVector3Normalize(dx::XMVector3TransformNormal(worldDir, view)));
 		emissiveLightsData.lights[i] = light;
 	}
 	pEmissiveLightsCbuf->Update(wnd.Gfx(), emissiveLightsData);
@@ -1740,33 +1785,33 @@ void App::DrawEmissiveLightOverlay()
 		};
 
 	// Marker for every active emissive light (emissiveWorldLights stores WORLD pos).
-	for (const auto& l : emissiveWorldLights)
-	{
-		ImVec2 s;
-		if (!WorldToScreen(l.viewPos, s))
-		{
-			continue;
-		}
-		const ImU32 col = IM_COL32(
-			(int)(std::min(1.0f, l.color.x) * 255.0f),
-			(int)(std::min(1.0f, l.color.y) * 255.0f),
-			(int)(std::min(1.0f, l.color.z) * 255.0f), 255);
-		drawList->AddCircleFilled(s, 5.0f, col);
-		drawList->AddCircle(s, 8.0f, IM_COL32(0, 0, 0, 200), 0, 2.0f);
-		for (int a = 0; a < 8; ++a)
-		{
-			const float ang = a * 0.7853981f; // 45 deg
-			const ImVec2 p0(s.x + std::cos(ang) * 10.f, s.y + std::sin(ang) * 10.0f);
-			const ImVec2 p1(s.x + std::cos(ang) * 15.f, s.y + std::sin(ang) * 15.0f);
-			drawList->AddLine(p0, p1, col, 2.0f);
-		}
-	}
+	//for (const auto& l : emissiveWorldLights)
+	//{
+	//	ImVec2 s;
+	//	if (!WorldToScreen(l.viewPos, s))
+	//	{
+	//		continue;
+	//	}
+	//	const ImU32 col = IM_COL32(
+	//		(int)(std::min(1.0f, l.color.x) * 255.0f),
+	//		(int)(std::min(1.0f, l.color.y) * 255.0f),
+	//		(int)(std::min(1.0f, l.color.z) * 255.0f), 255);
+	//	drawList->AddCircleFilled(s, 5.0f, col);
+	//	drawList->AddCircle(s, 8.0f, IM_COL32(0, 0, 0, 200), 0, 2.0f);
+	//	for (int a = 0; a < 8; ++a)
+	//	{
+	//		const float ang = a * 0.7853981f; // 45 deg
+	//		const ImVec2 p0(s.x + std::cos(ang) * 10.f, s.y + std::sin(ang) * 10.0f);
+	//		const ImVec2 p1(s.x + std::cos(ang) * 15.f, s.y + std::sin(ang) * 15.0f);
+	//		drawList->AddLine(p0, p1, col, 2.0f);
+	//	}
+	//}
 
 	if (haveSelected)
 	{
 		const int primIndex = (pickedPrimGroupIdx < (int)primPlacedIndices.size())
 			? primPlacedIndices[pickedPrimGroupIdx] : -1;
-		if (primIndex < 0)
+		if (primIndex >= 0)
 		{
 			const PrimLightDef def = primLightRegistry.Get(primIndex);
 			const PrimDrawable* pd = primPlaced[pickedPrimGroupIdx].front().get();
@@ -1790,6 +1835,24 @@ void App::DrawEmissiveLightOverlay()
 				drawList->AddLine({ s.x , s.y - 15.0f }, { s.x , s.y + 15.0f }, hl, 1.5f);
 				drawList->AddText({ s.x + 13.0f, s.y + 6.0f }, hl,
 					pickingEmitPoint ? "click lamp to set emit point" : "emit point");
+			}
+
+			//Draw the beam direction so the cone aim is visible while editing.
+			if (def.spotlight)
+			{
+				dx::XMFLOAT3 worldDir;
+				dx::XMStoreFloat3(&worldDir, dx::XMVector3Normalize(dx::XMVector3TransformNormal(
+					dx::XMVectorSet(def.direction.x, def.direction.y, def.direction.z, 0.0f), world)));
+				const dx::XMFLOAT3 beamEnd = {
+					wp.x + worldDir.x * 3.0f,
+					wp.y + worldDir.y * 3.0f,
+					wp.z + worldDir.z * 3.0f };
+				ImVec2 sStart, sEnd;
+				if (WorldToScreen(wp, sStart) && WorldToScreen(beamEnd, sEnd))
+				{
+					drawList->AddLine(sStart, sEnd, IM_COL32(120, 200, 255, 230), 2.0f);
+					drawList->AddCircleFilled(sEnd, 4.0f, IM_COL32(120, 200, 255, 230));
+				}
 			}
 		}
 	}
@@ -2029,10 +2092,10 @@ void App::ShowNprimImportWindow()
 			auto def = LoadPrimObject(nprimFilePath);
 			auto texturedLists = ConvertPrimToTexturedTriangleList(def);
 			primPreview.clear();
-			for (auto& [texImgNo, triList] : texturedLists)
+			for (auto& part : texturedLists)
 			{
-				std::string texPath = GetPrimTexturePath(texImgNo);
-				auto pd = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(triList), texPath);
+				std::string texPath = GetPrimTexturePath(part.textureImgNo);
+				auto pd = std::make_unique<PrimDrawable>(wnd.Gfx(), std::move(part.triangles), texPath, part.doubleSided);
 				pd->LinkTechniques(*pUnlitRg);
 				primPreview.push_back(std::move(pd));
 			}

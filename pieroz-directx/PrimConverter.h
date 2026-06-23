@@ -7,11 +7,21 @@
 #include <map>
 #include <string>
 
-// Covert a loaded PrimLoadResult into IndexedTriangleList grouped by texture.
+
+// A renderable part of a converted prim: geometry by texture and by
+// whether its faces are double-sided (POLY_FLAG_DOUBLESIDED).
+struct PrimMeshPart
+{
+	int textureImgNo = 0;
+	bool doubleSided = false;
+	IndexedTriangleList triangles;
+};
+
+// Covert a loaded PrimLoadResult into IndexedTriangleList parts grouped by texture and by double-sidedness.
 // Each face's texture is determined from its TexturePage and UV coordinates.
 // UVs are remapped to tile-local coordinates [0..1] within each 32x32 texture tile.
-// Returns a map of textureImgNo -> IndexedTriangeList
-std::map<int, IndexedTriangleList> ConvertPrimToTexturedTriangleList(
+// Faces with POLY_FLAG_DOUBLESIDED set are placed into separate parts so they can be rendered without back-face culling
+std::vector<PrimMeshPart> ConvertPrimToTexturedTriangleList(
 	const PrimLoadResult& prim,
 	float scale = 1.0f / 256.0f);
 

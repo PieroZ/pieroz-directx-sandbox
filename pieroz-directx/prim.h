@@ -2,6 +2,18 @@
 
 #include <cstdint>
 
+// Per-face DrawFlags bits 
+// Stored in PrimFace3::DrawFlags / PrimFac4::DrawFlags
+#define	POLY_FLAG_GOURAD		0x01
+#define	POLY_FLAG_TEXTURED		0x02
+#define	POLY_FLAG_MASKED		0x04
+#define	POLY_FLAG_SEMI_TRANS	0x08
+#define	POLY_FLAG_ALPHA			0x10
+#define	POLY_FLAG_TILED			0x20
+#define	POLY_FLAG_DOUBLESIDED	0x40
+#define	POLY_FLAG_WALKABLE		0x80
+
+
 struct PrimPoint
 {
     std::int16_t X;
