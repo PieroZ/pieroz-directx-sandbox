@@ -21,6 +21,7 @@
 #include "iamToJson.h"
 #include "primLoader.h"
 #include "PrimConverter.h"
+#include "PrimExporter.h"
 #include "WallBatch.h"
 #include "tmaLoader.h"
 #include "SkyboxPass.h"
@@ -2047,6 +2048,67 @@ void App::ShowExportWindow()
 			}
 		}
 	}
+	// -- UC nprim export
+	ImGui::Separator();
+	ImGui::TextUnformatted("Urban Chaos nprim (.prm)");
+
+	static char nprimExportPath[MAX_PATH] = "nprim_export.prm";
+	ImGui::InputText("Nprim Output", nprimExportPath, MAX_PATH);
+	static float nprimExportScale = 256.0f;
+	ImGui::InputFloat("Nprim Scale", &nprimExportScale, 1.0f, 16.0f, "%.2f");
+	ImGui::SameLine();
+	ImGui::TextDisabled("(?)");
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip(
+			"Multiplies world-space vertex positions before they are\n"
+			"quantized to int16 prim coordinates. Larger = bigger object.\n"
+			"Name the file starting with 'n' (e.g. nprim001.prm).");
+	}
+
+	if (ImGui::Button("Browse Nprim..."))
+	{
+		std::array<char, MAX_PATH> buf{};
+		strncpy_s(buf.data(), buf.size(), nprimExportPath, _TRUNCATE);
+		OPENFILENAMEA ofn{};
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = nullptr;
+		ofn.lpstrFile = buf.data();
+		ofn.nMaxFile = (DWORD)buf.size();
+		ofn.lpstrFilter = "Prim Files\0*.prn\0All Files\0*.*\0";
+		ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+		ofn.lpstrDefExt = "prm,";
+		if (GetSaveFileName(&ofn))
+		{
+			strncpy_s(nprimExportPath, buf.data(), MAX_PATH);
+		}
+	}
+
+	if (pExportModel)
+	{
+		ImGui::SameLine();
+		if (ImGui::Button("Export Nprim"))
+		{
+			std::string msg;
+			if (PrimExporter::Export(*pExportModel, nprimExportPath, nprimExportScale, msg))
+			{
+				exportError = "OK: Exported nrpim to " + std::string(nprimExportPath);
+				if (!msg.empty())
+				{
+					exportError += "(warning: " + msg + ")";
+				}
+			}
+			else
+			{
+				exportError = msg;
+			}
+		}
+	}
+	else
+	{
+		ImGui::TextDisabled("Load a model to enable nprim export.");
+	}
+
 	if (!exportError.empty())
 	{
 		if (exportError.substr(0, 3) == "OK:")

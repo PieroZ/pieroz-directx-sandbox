@@ -89,8 +89,25 @@ Material::Material( Graphics& gfx,const aiMaterial& material,const std::filesyst
 		{
 			step.AddBindable( std::make_shared<TransformCbuf>( gfx,0u ) );
 			// Use unlit shaders for flat texture rendering (no lighting)
-			const std::string vsName = (unlit && hasTexture) ? "Unlit_VS.cso" : (shaderCode + "_VS.cso");
-			const std::string psName = (unlit && hasTexture) ? "Unlit_PS.cso" : (shaderCode + "_PS.cso");
+			//const std::string vsName = (unlit && hasTexture) ? "Unlit_VS.cso" : (shaderCode + "_VS.cso");
+			//const std::string psName = (unlit && hasTexture) ? "Unlit_PS.cso" : (shaderCode + "_PS.cso");
+
+			// Unlit scenes (UnlitRenderGraph) do not bind a shadow comparison sampler at slots1,
+			// so unlit materials must never use the lit Phong shaders (which sample it and would
+			// trigger a "no sampler bound at Slot1" device error). Textured unlit materials use the
+			// Unlit shaders; color-only unlit materials fall back to the Solid  (Flat color) shaders
+			std::string vsName;
+			std::string psName;
+			if (unlit)
+			{
+				vsName = hasTexture ? "Unlit_VS.cso" : "Solid_VS.cso";
+				psName = hasTexture ? "Unlit_PS.cso" : "Solid_PS.cso";
+			}
+			else
+			{
+				vsName = shaderCode + "_VS.cso";
+				psName = shaderCode + "_PS.cso";
+			}
 
 
 			auto pvs = VertexShader::Resolve(gfx, vsName);
